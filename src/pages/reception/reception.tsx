@@ -20,6 +20,10 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete'
 import { useAuthStore } from '../../store/authstore'
 import { useNavigate } from 'react-router-dom'
+import { usePatientStore } from '../../store/use-patientstore'
+// Import doctorlar ro'yxati uchun store
+import { useUsersStore } from '../../store/users-store'
+import type { Patient } from '../../routes/patients-context'
 
 const modalStyle = {
   position: 'absolute' as const,
@@ -33,21 +37,20 @@ const modalStyle = {
   p: 4,
 }
 
-type Patient = {
-  id: string
-  firstName: string
-  lastName: string
-  gender: 'male' | 'female'
-  phone: string
-  doctor: string
-}
-
 export default function ReceptionPanel() {
   const role = useAuthStore(state => state.role)
   const logout = useAuthStore(state => state.logout)
   const navigate = useNavigate()
 
-  const [patients, setPatients] = useState<Patient[]>([])
+  // Zustand dan olingan global bemorlar va funksiyalar
+  const patients = usePatientStore(state => state.patients)
+  const addPatient = usePatientStore(state => state.addPatient)
+  const removePatient = usePatientStore(state => state.removePatient)
+
+  // Doktorlar ro'yxatini olish (faqat doctor rolidagi userlar)
+  const users = useUsersStore(state => state.users)
+  const doctors = users.filter(user => user.role === 'doctor')
+
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({
     firstName: '',
@@ -99,13 +102,13 @@ export default function ReceptionPanel() {
       id: Date.now().toString(),
       ...form,
     }
-    setPatients(prev => [...prev, newPatient])
+    addPatient(newPatient) // global holatga qo'shilyapti
     setOpen(false)
   }
 
   const handleDelete = (id: string) => {
     if (window.confirm('Are you sure you want to delete this patient?')) {
-      setPatients(prev => prev.filter(p => p.id !== id))
+      removePatient(id) // global holatdan o'chirilyapti
     }
   }
 
@@ -205,16 +208,27 @@ export default function ReceptionPanel() {
             margin="normal"
           />
 
-          <TextField
-            fullWidth
-            label="Doctor"
-            name="doctor"
-            value={form.doctor}
-            onChange={e => setForm(f => ({ ...f, doctor: e.target.value }))}
-            error={!!errors.doctor}
-            helperText={errors.doctor}
-            margin="normal"
-          />
+          {/* Doctor select here */}
+          <FormControl fullWidth margin="normal" error={!!errors.doctor}>
+            <InputLabel id="doctor-label">Doctor</InputLabel>
+            <Select
+              labelId="doctor-label"
+              value={form.doctor}
+              label="Doctor"
+              onChange={e => setForm(f => ({ ...f, doctor: e.target.value }))}
+            >
+              {doctors.map(doctor => (
+                <MenuItem key={doctor.id} value={doctor.name}>
+                  {doctor.name}
+                </MenuItem>
+              ))}
+            </Select>
+            {errors.doctor && (
+              <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
+                {errors.doctor}
+              </Typography>
+            )}
+          </FormControl>
 
           <Box mt={3} display="flex" justifyContent="flex-end" gap={2}>
             <Button onClick={handleClose} color="secondary">

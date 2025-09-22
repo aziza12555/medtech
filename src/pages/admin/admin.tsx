@@ -15,8 +15,10 @@ import {
 import { useUsersStore, type User } from '../../store/users-store'
 import { useAuthStore } from '../../store/authstore'
 import { useNavigate } from 'react-router-dom'
+import Example from './chart'
+import Dashboard from './dashboard'
 
-const style = {
+const modalStyle = {
   position: 'absolute' as const,
   top: '50%',
   left: '50%',
@@ -31,10 +33,12 @@ const style = {
 type View = 'dashboard' | 'doctors' | 'patients' | 'receptions'
 
 export default function AdminPanel() {
+  // Zustand dan store'larni olish
   const { users, addUser, updateUser, deleteUser } = useUsersStore()
   const logout = useAuthStore(state => state.logout)
   const navigate = useNavigate()
 
+  // Local state
   const [open, setOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [view, setView] = useState<View>('dashboard')
@@ -46,53 +50,63 @@ export default function AdminPanel() {
   })
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
 
-  // Logout
+  // Logout funksiyasi
   const handleLogout = () => {
     logout()
     navigate('/login', { replace: true })
   }
 
-  // Reset form state
+  // Formni reset qilish
   const resetForm = () => {
     setForm({ name: '', email: '', password: '', role: 'doctor' })
     setErrors({})
     setEditingUser(null)
   }
 
-  // Validate form
+  // Form validatsiyasi
   const validate = () => {
     const errs: { [key: string]: string } = {}
+
     if (!form.name.trim()) errs.name = 'Name is required'
     if (!form.email.trim()) errs.email = 'Email is required'
-    else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email = 'Invalid email'
-    // Password required if adding new user
-    if (!editingUser && !form.password.trim()) errs.password = 'Password is required'
-    else if (form.password.trim() && form.password.length < 6)
-      errs.password = 'Password must be at least 6 chars'
+    else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email = 'Invalid email format'
+
+    if (!editingUser && !form.password.trim()) {
+      errs.password = 'Password is required'
+    } else if (form.password.trim() && form.password.length < 6) {
+      errs.password = 'Password must be at least 6 characters'
+    }
+
     return errs
   }
 
-  // Open Add User modal
+  // Modalni ochish (Qo‘shish uchun)
   const handleOpenAdd = () => {
     resetForm()
     setOpen(true)
   }
 
-  // Open Edit User modal
+  // Modalni ochish (Tahrirlash uchun)
   const handleEdit = (user: User) => {
     setEditingUser(user)
-    setForm({ name: user.name, email: user.email, password: '', role: user.role }) // leave password empty on edit
+    setForm({
+      name: user.name,
+      email: user.email,
+      password: '', // Passwordni bo‘sh qoldiramiz
+      role: user.role,
+    })
+    setErrors({})
     setOpen(true)
   }
 
-  // Delete user confirmation
+  // Foydalanuvchini o‘chirish
   const handleDelete = (id: string) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
       deleteUser(id)
     }
   }
 
-  // Submit Add/Edit form
+  // Formni yuborish (Qo‘shish yoki yangilash)
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const errs = validate()
@@ -111,11 +125,11 @@ export default function AdminPanel() {
     resetForm()
   }
 
-  // Filter users by role
+  // Ro'yhatni filtrlash
   const doctors = users.filter(u => u.role === 'doctor')
   const receptions = users.filter(u => u.role === 'reception')
 
-  // Sidebar item click handler
+  // Sidebar ko‘rinishini o‘zgartirish
   const handleViewChange = (newView: View) => {
     setView(newView)
   }
@@ -137,34 +151,16 @@ export default function AdminPanel() {
           Admin Panel
         </Typography>
         <List sx={{ flexGrow: 1 }}>
-          <ListItem
-            button
-            selected={view === 'dashboard'}
-            onClick={() => handleViewChange('dashboard')}
-          >
-            <ListItemText primary="Dashboard" />
-          </ListItem>
-          <ListItem
-            button
-            selected={view === 'doctors'}
-            onClick={() => handleViewChange('doctors')}
-          >
-            <ListItemText primary="Doctors" />
-          </ListItem>
-          <ListItem
-            button
-            selected={view === 'patients'}
-            onClick={() => handleViewChange('patients')}
-          >
-            <ListItemText primary="Patients" />
-          </ListItem>
-          <ListItem
-            button
-            selected={view === 'receptions'}
-            onClick={() => handleViewChange('receptions')}
-          >
-            <ListItemText primary="Receptions" />
-          </ListItem>
+          {(['dashboard', 'doctors', 'patients', 'receptions'] as View[]).map((item) => (
+            <ListItem
+              button
+              key={item}
+              selected={view === item}
+              onClick={() => handleViewChange(item)}
+            >
+              <ListItemText primary={item.charAt(0).toUpperCase() + item.slice(1)} />
+            </ListItem>
+          ))}
         </List>
         <Divider sx={{ bgcolor: 'white', mb: 2 }} />
         <Button variant="contained" color="error" onClick={handleLogout}>
@@ -172,8 +168,9 @@ export default function AdminPanel() {
         </Button>
       </Box>
 
-      {/* Main content */}
+      {/* Asosiy kontent */}
       <Box sx={{ flexGrow: 1, p: 3, overflowY: 'auto' }}>
+        {/* Dashboard */}
         {view === 'dashboard' && (
           <>
             <Typography variant="h4" gutterBottom>
@@ -185,14 +182,10 @@ export default function AdminPanel() {
               <Typography>Doctors: {doctors.length}</Typography>
               <Typography>Receptions: {receptions.length}</Typography>
             </Paper>
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="h6" mb={2}>
-                Statistics Charts (placeholder)
-              </Typography>
+            <Paper sx={{ p: 15, mb: 8 }}>
               <Box
                 sx={{
-                  height: 200,
-                  bgcolor: 'grey.200',
+                  height: 400,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -200,12 +193,14 @@ export default function AdminPanel() {
                   borderRadius: 1,
                 }}
               >
-                <Typography>Chart Component Here</Typography>
+                <Example />
               </Box>
             </Paper>
+         
           </>
         )}
 
+        {/* Doctors va Receptions */}
         {(view === 'doctors' || view === 'receptions') && (
           <>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
@@ -218,7 +213,7 @@ export default function AdminPanel() {
             </Box>
 
             <Paper sx={{ p: 2 }}>
-              <table width="100%" style={{ borderCollapse: 'collapse' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr>
                     <th style={{ borderBottom: '1px solid #ddd', padding: 8 }}>Name</th>
@@ -228,16 +223,24 @@ export default function AdminPanel() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(view === 'doctors' ? doctors : receptions).map((user) => (
+                  {(view === 'doctors' ? doctors : receptions).map(user => (
                     <tr key={user.id}>
                       <td style={{ borderBottom: '1px solid #ddd', padding: 8 }}>{user.name}</td>
                       <td style={{ borderBottom: '1px solid #ddd', padding: 8 }}>{user.email}</td>
                       <td style={{ borderBottom: '1px solid #ddd', padding: 8 }}>{user.role}</td>
                       <td style={{ borderBottom: '1px solid #ddd', padding: 8 }}>
-                        <Button size="small" onClick={() => handleEdit(user)} sx={{ mr: 1 }}>
+                        <Button
+                          size="small"
+                          onClick={() => handleEdit(user)}
+                          sx={{ mr: 1 }}
+                        >
                           Edit
                         </Button>
-                        <Button size="small" color="error" onClick={() => handleDelete(user.id)}>
+                        <Button
+                          size="small"
+                          color="error"
+                          onClick={() => handleDelete(user.id)}
+                        >
                           Delete
                         </Button>
                       </td>
@@ -249,18 +252,21 @@ export default function AdminPanel() {
           </>
         )}
 
+        {/* Patients ko‘rinishi */}
         {view === 'patients' && (
           <>
             <Typography variant="h4" mb={2}>
               Patients
             </Typography>
-            <Typography color="text.secondary">Patients list is not implemented yet.</Typography>
+            <Typography color="text.secondary">
+              Patients list is not implemented yet.
+            </Typography>
           </>
         )}
 
         {/* Add/Edit User Modal */}
         <Modal open={open} onClose={() => setOpen(false)}>
-          <Box sx={style} component="form" onSubmit={handleSubmit}>
+          <Box sx={modalStyle} component="form" onSubmit={handleSubmit}>
             <Typography variant="h6" mb={2}>
               {editingUser ? 'Edit User' : 'Add User'}
             </Typography>
@@ -269,7 +275,7 @@ export default function AdminPanel() {
               label="Name"
               name="name"
               value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               error={!!errors.name}
               helperText={errors.name}
               margin="normal"
@@ -279,7 +285,7 @@ export default function AdminPanel() {
               label="Email"
               name="email"
               value={form.email}
-              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+              onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
               error={!!errors.email}
               helperText={errors.email}
               margin="normal"
@@ -290,7 +296,7 @@ export default function AdminPanel() {
               name="password"
               type="password"
               value={form.password}
-              onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+              onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
               error={!!errors.password}
               helperText={
                 editingUser
@@ -305,7 +311,7 @@ export default function AdminPanel() {
               label="Role"
               name="role"
               value={form.role}
-              onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
+              onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
               margin="normal"
             >
               <MenuItem value="doctor">Doctor</MenuItem>
