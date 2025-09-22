@@ -16,7 +16,6 @@ import { useUsersStore, type User } from '../../store/users-store'
 import { useAuthStore } from '../../store/authstore'
 import { useNavigate } from 'react-router-dom'
 import Example from './chart'
-import Dashboard from './dashboard'
 
 const modalStyle = {
   position: 'absolute' as const,
@@ -33,12 +32,10 @@ const modalStyle = {
 type View = 'dashboard' | 'doctors' | 'patients' | 'receptions'
 
 export default function AdminPanel() {
-  // Zustand dan store'larni olish
   const { users, addUser, updateUser, deleteUser } = useUsersStore()
   const logout = useAuthStore(state => state.logout)
   const navigate = useNavigate()
 
-  // Local state
   const [open, setOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [view, setView] = useState<View>('dashboard')
@@ -50,20 +47,17 @@ export default function AdminPanel() {
   })
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
 
-  // Logout funksiyasi
   const handleLogout = () => {
     logout()
     navigate('/login', { replace: true })
   }
 
-  // Formni reset qilish
   const resetForm = () => {
     setForm({ name: '', email: '', password: '', role: 'doctor' })
     setErrors({})
     setEditingUser(null)
   }
 
-  // Form validatsiyasi
   const validate = () => {
     const errs: { [key: string]: string } = {}
 
@@ -80,33 +74,29 @@ export default function AdminPanel() {
     return errs
   }
 
-  // Modalni ochish (Qo‘shish uchun)
   const handleOpenAdd = () => {
     resetForm()
     setOpen(true)
   }
 
-  // Modalni ochish (Tahrirlash uchun)
   const handleEdit = (user: User) => {
     setEditingUser(user)
     setForm({
       name: user.name,
       email: user.email,
-      password: '', // Passwordni bo‘sh qoldiramiz
+      password: '', 
       role: user.role,
     })
     setErrors({})
     setOpen(true)
   }
 
-  // Foydalanuvchini o‘chirish
   const handleDelete = (id: string) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
       deleteUser(id)
     }
   }
 
-  // Formni yuborish (Qo‘shish yoki yangilash)
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const errs = validate()
@@ -116,7 +106,9 @@ export default function AdminPanel() {
     }
 
     if (editingUser) {
-      updateUser(editingUser.id, form)
+      const updatedData = { ...form }
+      if (!form.password.trim()) delete updatedData.password
+      updateUser(editingUser.id, updatedData)
     } else {
       addUser(form)
     }
@@ -125,11 +117,9 @@ export default function AdminPanel() {
     resetForm()
   }
 
-  // Ro'yhatni filtrlash
   const doctors = users.filter(u => u.role === 'doctor')
   const receptions = users.filter(u => u.role === 'reception')
 
-  // Sidebar ko‘rinishini o‘zgartirish
   const handleViewChange = (newView: View) => {
     setView(newView)
   }
@@ -151,12 +141,13 @@ export default function AdminPanel() {
           Admin Panel
         </Typography>
         <List sx={{ flexGrow: 1 }}>
-          {(['dashboard', 'doctors', 'patients', 'receptions'] as View[]).map((item) => (
+          {(['dashboard', 'doctors', 'patients', 'receptions'] as View[]).map(item => (
             <ListItem
-              button
               key={item}
+              button
               selected={view === item}
               onClick={() => handleViewChange(item)}
+              sx={{ cursor: 'pointer' }}
             >
               <ListItemText primary={item.charAt(0).toUpperCase() + item.slice(1)} />
             </ListItem>
@@ -170,7 +161,6 @@ export default function AdminPanel() {
 
       {/* Asosiy kontent */}
       <Box sx={{ flexGrow: 1, p: 3, overflowY: 'auto' }}>
-        {/* Dashboard */}
         {view === 'dashboard' && (
           <>
             <Typography variant="h4" gutterBottom>
@@ -196,11 +186,9 @@ export default function AdminPanel() {
                 <Example />
               </Box>
             </Paper>
-         
           </>
         )}
 
-        {/* Doctors va Receptions */}
         {(view === 'doctors' || view === 'receptions') && (
           <>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
@@ -229,18 +217,10 @@ export default function AdminPanel() {
                       <td style={{ borderBottom: '1px solid #ddd', padding: 8 }}>{user.email}</td>
                       <td style={{ borderBottom: '1px solid #ddd', padding: 8 }}>{user.role}</td>
                       <td style={{ borderBottom: '1px solid #ddd', padding: 8 }}>
-                        <Button
-                          size="small"
-                          onClick={() => handleEdit(user)}
-                          sx={{ mr: 1 }}
-                        >
+                        <Button size="small" onClick={() => handleEdit(user)} sx={{ mr: 1 }}>
                           Edit
                         </Button>
-                        <Button
-                          size="small"
-                          color="error"
-                          onClick={() => handleDelete(user.id)}
-                        >
+                        <Button size="small" color="error" onClick={() => handleDelete(user.id)}>
                           Delete
                         </Button>
                       </td>
@@ -252,19 +232,15 @@ export default function AdminPanel() {
           </>
         )}
 
-        {/* Patients ko‘rinishi */}
         {view === 'patients' && (
           <>
             <Typography variant="h4" mb={2}>
               Patients
             </Typography>
-            <Typography color="text.secondary">
-              Patients list is not implemented yet.
-            </Typography>
+            <Typography color="text.secondary">Patients list is not implemented yet.</Typography>
           </>
         )}
 
-        {/* Add/Edit User Modal */}
         <Modal open={open} onClose={() => setOpen(false)}>
           <Box sx={modalStyle} component="form" onSubmit={handleSubmit}>
             <Typography variant="h6" mb={2}>
@@ -298,11 +274,7 @@ export default function AdminPanel() {
               value={form.password}
               onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
               error={!!errors.password}
-              helperText={
-                editingUser
-                  ? 'Leave blank to keep current password'
-                  : errors.password
-              }
+              helperText={editingUser ? 'Leave blank to keep current password' : errors.password}
               margin="normal"
             />
             <TextField
