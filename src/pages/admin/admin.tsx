@@ -12,10 +12,11 @@ import {
   ListItemText,
   Divider,
 } from '@mui/material'
-import { useUsersStore, type User } from '../../store/users-store'
-import { useAuthStore } from '../../store/authstore'
+
 import { useNavigate } from 'react-router-dom'
 import Example from './chart'
+import { useAuthStore } from '../../store/auth-store'
+import { useUsersStore } from '../../store/user'
 
 const modalStyle = {
   position: 'absolute' as const,
@@ -137,9 +138,7 @@ export default function AdminPanel() {
           p: 2,
         }}
       >
-        <Typography variant="h5" sx={{ mb: 3 }}>
-          Admin Panel
-        </Typography>
+        
         <List sx={{ flexGrow: 1 }}>
           {(['dashboard', 'doctors', 'patients', 'receptions'] as View[]).map(item => (
             <ListItem
@@ -154,9 +153,7 @@ export default function AdminPanel() {
           ))}
         </List>
         <Divider sx={{ bgcolor: 'white', mb: 2 }} />
-        <Button variant="contained" color="error" onClick={handleLogout}>
-          Logout
-        </Button>
+     
       </Box>
 
       {/* Asosiy kontent */}
@@ -232,14 +229,6 @@ export default function AdminPanel() {
           </>
         )}
 
-        {view === 'patients' && (
-          <>
-            <Typography variant="h4" mb={2}>
-              Patients
-            </Typography>
-            <Typography color="text.secondary">Patients list is not implemented yet.</Typography>
-          </>
-        )}
 
         <Modal open={open} onClose={() => setOpen(false)}>
           <Box sx={modalStyle} component="form" onSubmit={handleSubmit}>
@@ -286,8 +275,7 @@ export default function AdminPanel() {
               onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
               margin="normal"
             >
-              <MenuItem value="doctor">Doctor</MenuItem>
-              <MenuItem value="reception">Reception</MenuItem>
+             
             </TextField>
 
             <Box mt={3} display="flex" justifyContent="flex-end" gap={2}>

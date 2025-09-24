@@ -1,23 +1,27 @@
-import { Navigate } from 'react-router-dom'
-import { useAuthStore } from '../store/authstore'
-import type { ReactNode } from 'react'
+import React from 'react';
+import { Navigate } from 'react-router-dom';
+import { useAuthStore } from '../store/auth-store';
 
-interface Props {
-  children: ReactNode
-  allowedRoles?: string[]
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  allowedRoles?: string[];
 }
 
-export function ProtectedRoute({ children, allowedRoles = [] }: Props) {
-  const token = useAuthStore((state) => state.token)
-  const role = useAuthStore((state) => state.role)
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
+  children, 
+  allowedRoles = [] 
+}) => {
+  const { isAuthenticated, user } = useAuthStore();
 
-  if (!token) {
-    return <Navigate to="/login" replace />
+  if (!isAuthenticated) {
+    return <Navigate to="/signin" replace />;
   }
 
-  if (allowedRoles.length > 0 && role && !allowedRoles.includes(role)) {
-    return <Navigate to={`/${role}`} replace />
+  if (allowedRoles.length > 0 && user && !allowedRoles.includes(user.role)) {
+ 
+    const redirectPath = `/${user.role}`;
+    return <Navigate to={redirectPath} replace />;
   }
 
-  return <>{children}</>
-}
+  return <>{children}</>;
+};

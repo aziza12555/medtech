@@ -9,9 +9,9 @@ import {
   Divider,
   Button,
 } from '@mui/material'
-import { useAuthStore } from '../../store/authstore'
 import { useNavigate } from 'react-router-dom'
 import { usePatients } from '../../routes/patients-context'
+import { useAuthStore } from '../../store/auth-store'
 
 export default function DoctorPanel() {
   const role = useAuthStore(state => state.role) // doctorning nomi yoki roli

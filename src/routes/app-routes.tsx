@@ -1,54 +1,78 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
-import { useAuthStore } from '../store/authstore'
-import Login from '../pages/auth/login'
-import { ProtectedRoute } from './protected-route'
-import AdminPanel from '../pages/admin/admin'
-import DoctorPanel from '../pages/doctor/doctor'
-import ReceptionPanel from '../pages/reception/reception'
+import React from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuthStore } from '../store/auth-store';
+import { ProtectedRoute } from './protected-route';
+import AdminPanel from '../pages/admin/admin';
+import DoctorPanel from '../pages/doctor/doctor';
+import UserPage from '../pages/admin/user';
+import Patients from '../pages/reception/patients';
+import { ReceptionPanel } from '../pages/reception/reception';
+import { SignIn } from '../pages/auth/auth';
+import MiniDrawer from '../pages/admin/sidebar';
 
+export const AppRoutes: React.FC = () => {
+  const { isAuthenticated, user } = useAuthStore();
 
-export const AppRoutes = () => {
-  const token = useAuthStore((state) => state.token)
-  const role = useAuthStore((state) => state.role)
+  const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+    <div className="min-h-screen flex bg-gray-50">
+      <MiniDrawer />
 
-  if (!token) {
+      <div className="flex flex-col flex-1">
+        <main className="flex-1 p-4 overflow-y-auto">{children}</main>
+      </div>
+    </div>
+  );
+
+  if (!isAuthenticated) {
     return (
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="/signin" element={<SignIn/>} />
+        <Route path="*" element={<Navigate to="/signin" replace />} />
       </Routes>
-    )
+    );
   }
 
   return (
-    <Routes>
-      <Route path="/login" element={<Navigate to={`/${role}`} replace />} />
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute allowedRoles={['admin']}>
-            <AdminPanel />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/doctor"
-        element={
-          <ProtectedRoute allowedRoles={['doctor']}>
-            <DoctorPanel />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/reception"
-        element={
-          <ProtectedRoute allowedRoles={['reception']}>
-            <ReceptionPanel />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="/" element={<Navigate to={`/${role}`} replace />} />
-      <Route path="*" element={<Navigate to={`/${role}`} replace />} />
-    </Routes>
-  )
-}
+    <Layout>
+      <Routes>
+        <Route
+          path="/signin"
+          element={<Navigate to={`/${user?.role}`} replace />}
+        />
+
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminPanel />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/doctor"
+          element={
+            <ProtectedRoute allowedRoles={['doctor']}>
+              <DoctorPanel />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/reception"
+          element={
+            <ProtectedRoute allowedRoles={['reception']}>
+              <ReceptionPanel />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route path="/" element={<Navigate to={`/${user?.role}`} replace />} />
+        <Route path="*" element={<Navigate to={`/${user?.role}`} replace />} />
+        <Route path="/user" element={<UserPage />} />
+        <Route path="/patients" element={<Patients />} />
+          
+      </Routes>
+    </Layout>
+  );
+};
