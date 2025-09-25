@@ -25,23 +25,25 @@ import {
   MenuItem,
   Typography,
   Tooltip,
+  ListItemIcon as MuiListItemIcon,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import AccountCircle from "@mui/icons-material/AccountCircle";
 import LogoutIcon from "@mui/icons-material/Logout";
 import SettingsIcon from "@mui/icons-material/Settings";
-  import { Link, Outlet } from "react-router-dom";
+import { Link, Outlet, useNavigate } from "react-router-dom";
 import { BarChart, Receipt, Settings2Icon, Stethoscope, User, Users } from "lucide-react";
+import { Navbar } from "../shared/navbar";
 
- const sidebar=[
-    {name:"Dashboard", route:"/dashboard", icon:BarChart},
-    {name:"Profile", route:"/admin-profile", icon:User},
-    {name:"Doctors", route:"/doctorfor-admin", icon:Stethoscope},
-    {name:"Receptions", route:"/reception-panel", icon:Receipt},
-    {name:"Patients", route:"/patient", icon:Users},
-    {name:"Settings", route:"/settings", icon:Settings2Icon},
-]
+const sidebar = [
+  { name: "Dashboard", route: "/dashboard", icon: BarChart },
+  { name: "Profile", route: "/admin-profile", icon: User },
+  { name: "Doctors", route: "/doctorfor-admin", icon: Stethoscope },
+  { name: "Receptions", route: "/reception-panel", icon: Receipt },
+  { name: "Patients", route: "/patient", icon: Users },
+  { name: "Settings", route: "/settings", icon: Settings2Icon },
+];
 
 const drawerWidth = 240;
 
@@ -69,7 +71,7 @@ const closedMixin = (theme: Theme): CSSObject => ({
 const DrawerHeader = styled("div")(({ theme }) => ({
   display: "flex",
   alignItems: "center",
-  justifyContent: "space-between",
+  justifyContent: "flex-end",
   padding: theme.spacing(0, 1),
   ...theme.mixins.toolbar,
 }));
@@ -86,8 +88,6 @@ const AppBar = styled(MuiAppBar, {
     easing: theme.transitions.easing.sharp,
     duration: theme.transitions.duration.leavingScreen,
   }),
-  background: "linear-gradient(45deg, )",
-  boxShadow: "0 3px 5px 2px ",
   ...(open && {
     marginLeft: drawerWidth,
     width: `calc(100% - ${drawerWidth}px)`,
@@ -116,15 +116,10 @@ const Drawer = styled(MuiDrawer, {
       }),
 }));
 
-
-
-;
-
 export default function MiniDrawer() {
   const [open, setOpen] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
-  const [notificationsAnchorEl, setNotificationsAnchorEl] =
-    React.useState<null | HTMLElement>(null);
+  const navigate = useNavigate();
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -142,155 +137,44 @@ export default function MiniDrawer() {
     setAnchorEl(null);
   };
 
-  const handleNotificationsMenuOpen = (
-    event: React.MouseEvent<HTMLElement>
-  ) => {
-    setNotificationsAnchorEl(event.currentTarget);
+  const handleProfileClick = () => {
+    navigate("/admin-profile");
+    handleMenuClose();
   };
 
-  const handleNotificationsMenuClose = () => {
-    setNotificationsAnchorEl(null);
+  const handleSettingsClick = () => {
+    navigate("/settings");
+    handleMenuClose();
+  };
+
+  const logoutUser = () => {
+    // Tozalash
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+  };
+
+  const handleLogout = () => {
+    logoutUser();
+    navigate("/login", { replace: true });  // replace: true page history'dan olib tashlaydi
+    handleMenuClose();
+  };
+
+  const handleSidebarLogout = () => {
+    logoutUser();
+    navigate("/login", { replace: true });
   };
 
   const menuId = "primary-search-account-menu";
-  const notificationsId = "notifications-menu";
 
   return (
     <Box sx={{ display: "flex" }}>
       <CssBaseline />
-      <AppBar position="fixed" open={open}>
-        <Toolbar>
-          <IconButton
-            size="large"
-            edge="start"
-            color="inherit"
-            aria-label="open drawer"
-            onClick={open ? handleDrawerClose : handleDrawerOpen}
-            sx={{ mr: 2 }}
-          >
-            {open ? <ChevronLeftIcon /> : <MenuIcon />}
-          </IconButton>
-
-          <Typography
-            variant="h6"
-            noWrap
-            component="div"
-            sx={{ display: { xs: "none", sm: "block" } }}
-          >
-            MedTech 
-          </Typography>
-
-         
-
-          <Box sx={{ flexGrow: 1 }} />
-
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <IconButton
-              size="large"
-              aria-label="show new notifications"
-              color="inherit"
-              onClick={handleNotificationsMenuOpen}
-            >
-           
-            </IconButton>
-
-            <Tooltip title="Profil sozlamalari">
-              <IconButton
-                size="large"
-                edge="end"
-                aria-label="account of current user"
-                aria-controls={menuId}
-                aria-haspopup="true"
-                onClick={handleProfileMenuOpen}
-                color="inherit"
-              >
-                <Avatar sx={{ width: 32, height: 32 }}  alt="A" />
-              </IconButton>
-            </Tooltip>
-          </Box>
-
-          {/* Profil menyusi */}
-          <Menu
-            anchorEl={anchorEl}
-            anchorOrigin={{
-              vertical: "top",
-              horizontal: "right",
-            }}
-            id={menuId}
-            keepMounted
-            transformOrigin={{
-              vertical: "top",
-              horizontal: "right",
-            }}
-            open={Boolean(anchorEl)}
-            onClose={handleMenuClose}
-          >
-            <Link to={"/admin-profile"}>
-              <MenuItem onClick={handleMenuClose}>
-                <ListItemIcon>
-                  <AccountCircle fontSize="small" />
-                </ListItemIcon>
-                Profile
-              </MenuItem>
-            </Link>
-            <Link to={"/settings"}>
-              <MenuItem onClick={handleMenuClose}>
-                <ListItemIcon>
-                  <SettingsIcon fontSize="small" />
-                </ListItemIcon>
-                Settings
-              </MenuItem>
-            </Link>
-            <MenuItem onClick={handleMenuClose}>
-              <ListItemIcon>
-                <LogoutIcon fontSize="small" />
-              </ListItemIcon>
-              <Link to="/" style={{ textDecoration: "none", color: "inherit" }}>
-                LogOut
-              </Link>
-            </MenuItem>
-          </Menu>
-
-          {/* Bildirishnomalar menyusi */}
-          <Menu
-            anchorEl={notificationsAnchorEl}
-            anchorOrigin={{
-              vertical: "top",
-              horizontal: "right",
-            }}
-            id={notificationsId}
-            keepMounted
-            transformOrigin={{
-              vertical: "top",
-              horizontal: "right",
-            }}
-            open={Boolean(notificationsAnchorEl)}
-            onClose={handleNotificationsMenuClose}
-          >
-            <MenuItem onClick={handleNotificationsMenuClose}>
-              <Typography variant="body2">
-                Yangi xabarlar mavjud emas
-              </Typography>
-            </MenuItem>
-          </Menu>
-        </Toolbar>
-      </AppBar>
-
+      <Navbar/>
       <Drawer variant="permanent" open={open}>
         <DrawerHeader>
-          <Typography
-            variant="h6"
-            component="div"
-            sx={{
-              flexGrow: 1,
-              textAlign: "center",
-              fontWeight: "bold",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
-            {open ? "MedTech" : "MT"}
-          </Typography>
+          <IconButton onClick={handleDrawerClose}>
+            <ChevronLeftIcon />
+          </IconButton>
         </DrawerHeader>
 
         <Divider />
@@ -299,65 +183,64 @@ export default function MiniDrawer() {
           {sidebar.map((item) => {
             const Icon = item.icon;
             return (
-              <Link
-                key={item.name}
-                to={item.route}
-                style={{ textDecoration: "none", color: "inherit" }}
-              >
-                <ListItem disablePadding sx={{ display: "block" }}>
-                  <ListItemButton
-                    sx={[
-                      {
-                        minHeight: 48,
-                        px: 2.5,
-                        borderRadius: 1,
-                        mx: 1,
-                        mb: 0.5,
-                      },
-                      open
-                        ? { justifyContent: "initial" }
-                        : { justifyContent: "center" },
-                    ]}
+              <ListItem key={item.name} disablePadding sx={{ display: "block" }}>
+                <ListItemButton
+                  component={Link}
+                  to={item.route}
+                  sx={{
+                    minHeight: 48,
+                    justifyContent: open ? "initial" : "center",
+                    px: 2.5,
+                  }}
+                >
+                  <ListItemIcon
+                    sx={{
+                      minWidth: 0,
+                      mr: open ? 3 : "auto",
+                      justifyContent: "center",
+                    }}
                   >
-                    <ListItemIcon
-                      sx={[
-                        {
-                          minWidth: 0,
-                          justifyContent: "center",
-                          color: "primary.main",
-                        },
-                        open ? { mr: 3 } : { mr: "auto" },
-                      ]}
-                    >
-                      <Icon />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={item.name}
-                      sx={[open ? { opacity: 1 } : { opacity: 0 }]}
-                    />
-                  </ListItemButton>
-                </ListItem>
-              </Link>
+                    <Icon size={20} />
+                  </ListItemIcon>
+                  <ListItemText primary={item.name} sx={{ opacity: open ? 1 : 0 }} />
+                </ListItemButton>
+              </ListItem>
             );
           })}
         </List>
 
-        <Box sx={{ mt: "auto", p: 2 }}>
-          <Divider sx={{ mb: 2 }} />
-          <Link to="/" style={{ textDecoration: "none" }}>
+        <Divider />
+
+        {/* Sidebar chiqish tugmasi */}
+        <List>
+          <ListItem disablePadding sx={{ display: "block" }}>
             <ListItemButton
+              onClick={handleSidebarLogout}
               sx={{
-                borderRadius: 1,
+                minHeight: 48,
+                justifyContent: open ? "initial" : "center",
+                px: 2.5,
                 color: "error.main",
+                "&:hover": {
+                  backgroundColor: "error.light",
+                  color: "white",
+                },
               }}
             >
-              <ListItemIcon sx={{ color: "error.main" }}>
+              <ListItemIcon
+                sx={{
+                  minWidth: 0,
+                  mr: open ? 3 : "auto",
+                  justifyContent: "center",
+                  color: "inherit",
+                }}
+              >
                 <LogoutIcon />
               </ListItemIcon>
-              <ListItemText primary="LogOut" />
+              <ListItemText primary="Chiqish" sx={{ opacity: open ? 1 : 0 }} />
             </ListItemButton>
-          </Link>
-        </Box>
+          </ListItem>
+        </List>
       </Drawer>
 
       <Box component="main" sx={{ flexGrow: 1, p: 3 }}>

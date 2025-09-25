@@ -1,30 +1,38 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from '../store/auth-store';
-import { ProtectedRoute } from './protected-route';
 
+import Patients from '../pages/reception/patients';
+import { useAuthStore } from '../store/auth-store';
+import { Navbar } from '../pages/shared/navbar';
+import { SignIn } from '../pages/auth/auth';
+import { ProtectedRoute } from './protected-route';
 import AdminPanel from '../pages/admin/admin';
 import DoctorPanel from '../pages/doctor/doctor';
-
-import UserPage from '../pages/admin/user';
-
-import { SignIn } from '../pages/auth/auth';
-import MiniDrawer from '../pages/admin/sidebar';
 import { ReceptionPanel } from '../pages/reception/reception';
-import DoctorforAdmin from '../pages/doctor/doctorfor-admin';
+import UserPage from '../pages/admin/user';
+import MiniDrawer from '../pages/admin/sidebar';
 
 export const AppRoutes: React.FC = () => {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, fetchMe, isLoading } = useAuthStore();
+  console.log(isAuthenticated,'s');
   
+  useEffect(() => {
+    fetchMe(); 
+  }, [fetchMe]);
 
-  const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div className="min-h-screen flex bg-gray-50">
-      <MiniDrawer />
+      <MiniDrawer/>
       <div className="flex flex-col flex-1">
+        <Navbar />
         <main className="flex-1 p-4 overflow-y-auto">{children}</main>
       </div>
     </div>
   );
+
+  if (isLoading) {
+    return <div className="flex justify-center items-center h-screen">Loading...</div>;
+  }
 
   if (!isAuthenticated) {
     return (
@@ -36,73 +44,41 @@ export const AppRoutes: React.FC = () => {
   }
 
   return (
-    <Routes>
-      {/* Redirect to role-based home */}
-      <Route path="/signin" element={<Navigate to={`/${user?.role}`} replace />} />
-      <Route path="/" element={<Navigate to={`/${user?.role}`} replace />} />
-      <Route path="*" element={<Navigate to={`/${user?.role}`} replace />} />
-
-      {/* admin */}
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute allowedRoles={['admin']}>
-            <AdminLayout>
+    <Layout>
+      <Routes>
+        <Route
+          path="/signin"
+          element={<Navigate to={`/${user?.role}`} replace />}
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
               <AdminPanel />
-            </AdminLayout>
-          </ProtectedRoute>
-        }
-      />
-      {/* admin profil */}
-      <Route
-        path="/admin-profile"
-        element={
-          <ProtectedRoute allowedRoles={['admin']}>
-            <AdminLayout>
-              <UserPage />
-            </AdminLayout>
-          </ProtectedRoute>
-        }
-      />
-      {/* reception */}
-      <Route
-        path="/reception-panel"
-        element={
-          <ProtectedRoute allowedRoles={['admin']}>
-           <ReceptionPanel/>
-          </ProtectedRoute>
-        }
-      />
-         <Route
-        path="/reception-panel"
-        element={
-          <ProtectedRoute allowedRoles={['reception']}>
-           <ReceptionPanel/>
-          </ProtectedRoute>
-        }
-      />
-     
-
-      {/* doctor */}
-      <Route
-        path="/doctorfor-admin"
-        element={
-          <ProtectedRoute allowedRoles={['admin']}>
-           <DoctorforAdmin/>
-          </ProtectedRoute>
-        }
-      />
-        {/* doctor */}
-      <Route
-        path="/doctor-panel"
-        element={
-          <ProtectedRoute allowedRoles={['doctor']}>
-            <DoctorPanel />
-          </ProtectedRoute>
-        }
-      />
-
-  </Routes>
-  
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/doctor"
+          element={
+            <ProtectedRoute allowedRoles={['doctor']}>
+              <DoctorPanel />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reception"
+          element={
+            <ProtectedRoute allowedRoles={['reception']}>
+              <ReceptionPanel />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/" element={<Navigate to={`/${user?.role}`} replace />} />
+        <Route path="*" element={<Navigate to={`/${user?.role}`} replace />} />
+        <Route path="/user" element={<UserPage />} />
+        <Route path="/patients" element={<Patients />} />
+      </Routes>
+    </Layout>
   );
 };

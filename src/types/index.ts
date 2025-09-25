@@ -3,6 +3,9 @@ export interface User {
   email: string;
   role: string;
   mustChangePassword: boolean;
+    firstName: string;
+  lastName: string;
+  temporaryPassword: string | null;
 }
 
 export interface AuthState {
@@ -10,7 +13,17 @@ export interface AuthState {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
+  token: string | null;
+
 }
+export interface CreateUserDto {
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string; // yoki Role enumni import qilsangiz ham bo‘ladi
+  temporaryPassword: string;
+}
+
 
 export interface Patient {
   id: string;
@@ -47,12 +60,11 @@ export interface MedicalRecord {
   notes?: string;
   createdAt: string;
 }
-
 export interface UsersStore {
   users: User[];
-  addUser: (user: Omit<User, 'id' | 'createdAt'>) => void;
-  updateUser: (id: string, user: Partial<User>) => void;
-  deleteUser: (id: string) => void;
+  addUser: (user: CreateUserDto) => Promise<void>;
+  updateUser: (id: string, user: Partial<User>) => Promise<void>;
+  deleteUser: (id: string) => Promise<void>;
   getUsersByRole: (role: string) => User[];
 }
 
