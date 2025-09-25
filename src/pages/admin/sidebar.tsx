@@ -1,7 +1,6 @@
 import * as React from "react";
 import {
   styled,
-  useTheme,
   type Theme,
   type CSSObject,
 } from "@mui/material/styles";
@@ -22,7 +21,6 @@ import ListItemText from "@mui/material/ListItemText";
 import {
   Avatar,
   IconButton,
-  Input,
   Menu,
   MenuItem,
   Typography,
@@ -39,9 +37,9 @@ import { BarChart, Receipt, Settings2Icon, Stethoscope, User, Users } from "luci
  const sidebar=[
     {name:"Dashboard", route:"/dashboard", icon:BarChart},
     {name:"Profile", route:"/admin-profile", icon:User},
-    {name:"Doctors", route:"/doctors", icon:Stethoscope},
-    {name:"Receptions", route:"/receptions", icon:Receipt},
-    {name:"Patients", route:"/patients", icon:Users},
+    {name:"Doctors", route:"/doctorfor-admin", icon:Stethoscope},
+    {name:"Receptions", route:"/reception-panel", icon:Receipt},
+    {name:"Patients", route:"/patient", icon:Users},
     {name:"Settings", route:"/settings", icon:Settings2Icon},
 ]
 
@@ -88,8 +86,8 @@ const AppBar = styled(MuiAppBar, {
     easing: theme.transitions.easing.sharp,
     duration: theme.transitions.duration.leavingScreen,
   }),
-  background: "linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)",
-  boxShadow: "0 3px 5px 2px rgba(33, 203, 243, .3)",
+  background: "linear-gradient(45deg, )",
+  boxShadow: "0 3px 5px 2px ",
   ...(open && {
     marginLeft: drawerWidth,
     width: `calc(100% - ${drawerWidth}px)`,
@@ -118,47 +116,11 @@ const Drawer = styled(MuiDrawer, {
       }),
 }));
 
-const Search = styled("div")(({ theme }) => ({
-  position: "relative",
-  borderRadius: theme.shape.borderRadius,
-  backgroundColor: "rgba(255, 255, 255, 0.15)",
-  "&:hover": {
-    backgroundColor: "rgba(255, 255, 255, 0.25)",
-  },
-  marginRight: theme.spacing(2),
-  marginLeft: 0,
-  width: "100%",
-  [theme.breakpoints.up("sm")]: {
-    marginLeft: theme.spacing(3),
-    width: "auto",
-  },
-}));
 
-const SearchIconWrapper = styled("div")(({ theme }) => ({
-  padding: theme.spacing(0, 2),
-  height: "100%",
-  position: "absolute",
-  pointerEvents: "none",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-}));
 
-const StyledInputBase = styled(Input)(({ theme }) => ({
-  color: "inherit",
-  "& .MuiInputBase-input": {
-    padding: theme.spacing(1, 1, 1, 0),
-    paddingLeft: `calc(1em + ${theme.spacing(4)})`,
-    transition: theme.transitions.create("width"),
-    width: "100%",
-    [theme.breakpoints.up("md")]: {
-      width: "20ch",
-    },
-  },
-}));
+;
 
 export default function MiniDrawer() {
-  const theme = useTheme();
   const [open, setOpen] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const [notificationsAnchorEl, setNotificationsAnchorEl] =
@@ -323,7 +285,6 @@ export default function MiniDrawer() {
               flexGrow: 1,
               textAlign: "center",
               fontWeight: "bold",
-              background: "linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
             }}

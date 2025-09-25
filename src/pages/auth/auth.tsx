@@ -2,8 +2,16 @@ import React, { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/auth-store';
 import { validateEmail } from '../../utilits/utilt';
-import { Button, Input } from '@mui/material';
 
+import {
+  Box,
+  Button,
+  TextField,
+  Typography,
+  Paper,
+  CircularProgress,
+  Alert,
+} from '@mui/material';
 
 export const SignIn = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -59,49 +67,68 @@ export const SignIn = () => {
     }
   };
 
-
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to MedTech
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Healthcare Management System
-          </p>
-        </div>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        bgcolor: '#f5f5f5',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        px: 2,
+      }}
+    >
+      <Paper elevation={6} sx={{ p: 4, maxWidth: 400, width: '100%' }}>
+        <Typography variant="h4" align="center" gutterBottom>
+          Sign in to MedTech
+        </Typography>
+        <Typography variant="subtitle2" align="center" color="textSecondary" mb={3}>
+          Healthcare Management System
+        </Typography>
 
-        <div className="bg-white p-8 rounded-lg shadow-md">
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            {errors.general && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                {errors.general}
-              </div>
-            )}
+        <form onSubmit={handleSubmit}>
+          {errors.general && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {errors.general}
+            </Alert>
+          )}
 
-            <Input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="admin@gmail.com"
-            />
+          <TextField
+            fullWidth
+            label="Email"
+            name="email"
+            type="email"
+            value={formData.email}
+            onChange={handleChange}
+            error={!!errors.email}
+            helperText={errors.email}
+            margin="normal"
+          />
 
-            <Input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="********"
-            />
+          <TextField
+            fullWidth
+            label="Password"
+            name="password"
+            type="password"
+            value={formData.password}
+            onChange={handleChange}
+            error={!!errors.password}
+            helperText={errors.password}
+            margin="normal"
+          />
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign In'}
-            </Button>
-          </form>
-        </div>
-      </div>
-    </div>
+          <Button
+            type="submit"
+            fullWidth
+            variant="contained"
+            color="primary"
+            disabled={loading}
+            sx={{ mt: 3 }}
+          >
+            {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
+          </Button>
+        </form>
+      </Paper>
+    </Box>
   );
 };

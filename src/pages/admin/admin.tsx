@@ -5,18 +5,15 @@ import {
   TextField,
   Typography,
   Modal,
-  MenuItem,
   Paper,
-  List,
-  ListItem,
-  ListItemText,
-  Divider,
+  MenuItem,
 } from '@mui/material'
 
 import { useNavigate } from 'react-router-dom'
 import Example from './chart'
 import { useAuthStore } from '../../store/auth-store'
 import { useUsersStore } from '../../store/user'
+import type { User } from '../../types'
 
 const modalStyle = {
   position: 'absolute' as const,
@@ -48,9 +45,14 @@ export default function AdminPanel() {
   })
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
 
-  const handleLogout = () => {
-    logout()
-    navigate('/login', { replace: true })
+  // Handle Logout with async just in case logout is async
+  const handleLogout = async () => {
+    try {
+      await logout()
+      navigate('/login', { replace: true })
+    } catch (error) {
+      console.error('Logout failed:', error)
+    }
   }
 
   const resetForm = () => {
@@ -85,7 +87,7 @@ export default function AdminPanel() {
     setForm({
       name: user.name,
       email: user.email,
-      password: '', 
+      password: '',
       role: user.role,
     })
     setErrors({})
@@ -121,42 +123,12 @@ export default function AdminPanel() {
   const doctors = users.filter(u => u.role === 'doctor')
   const receptions = users.filter(u => u.role === 'reception')
 
-  const handleViewChange = (newView: View) => {
-    setView(newView)
-  }
-
   return (
-    <Box sx={{ display: 'flex', height: '100vh' }}>
-      {/* Sidebar */}
-      <Box
-        sx={{
-          width: 220,
-          bgcolor: 'primary.main',
-          color: 'white',
-          display: 'flex',
-          flexDirection: 'column',
-          p: 2,
-        }}
-      >
-        
-        <List sx={{ flexGrow: 1 }}>
-          {(['dashboard', 'doctors', 'patients', 'receptions'] as View[]).map(item => (
-            <ListItem
-              key={item}
-              button
-              selected={view === item}
-              onClick={() => handleViewChange(item)}
-              sx={{ cursor: 'pointer' }}
-            >
-              <ListItemText primary={item.charAt(0).toUpperCase() + item.slice(1)} />
-            </ListItem>
-          ))}
-        </List>
-        <Divider sx={{ bgcolor: 'white', mb: 2 }} />
-     
-      </Box>
+    <Box sx={{ display: 'flex', height: '100vh', width: '190vh', marginLeft: '50px' }}>
+      {/* Sidebar or top bar for switching views and logout */}
+    
 
-      {/* Asosiy kontent */}
+      {/* Main content */}
       <Box sx={{ flexGrow: 1, p: 3, overflowY: 'auto' }}>
         {view === 'dashboard' && (
           <>
@@ -169,7 +141,7 @@ export default function AdminPanel() {
               <Typography>Doctors: {doctors.length}</Typography>
               <Typography>Receptions: {receptions.length}</Typography>
             </Paper>
-            <Paper sx={{ p: 15, mb: 8 }}>
+            <Paper sx={{ p: 3, mb: 8 }}>
               <Box
                 sx={{
                   height: 400,
@@ -229,65 +201,6 @@ export default function AdminPanel() {
           </>
         )}
 
-
-        <Modal open={open} onClose={() => setOpen(false)}>
-          <Box sx={modalStyle} component="form" onSubmit={handleSubmit}>
-            <Typography variant="h6" mb={2}>
-              {editingUser ? 'Edit User' : 'Add User'}
-            </Typography>
-            <TextField
-              fullWidth
-              label="Name"
-              name="name"
-              value={form.name}
-              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              error={!!errors.name}
-              helperText={errors.name}
-              margin="normal"
-            />
-            <TextField
-              fullWidth
-              label="Email"
-              name="email"
-              value={form.email}
-              onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-              error={!!errors.email}
-              helperText={errors.email}
-              margin="normal"
-            />
-            <TextField
-              fullWidth
-              label="Password"
-              name="password"
-              type="password"
-              value={form.password}
-              onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-              error={!!errors.password}
-              helperText={editingUser ? 'Leave blank to keep current password' : errors.password}
-              margin="normal"
-            />
-            <TextField
-              select
-              fullWidth
-              label="Role"
-              name="role"
-              value={form.role}
-              onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
-              margin="normal"
-            >
-             
-            </TextField>
-
-            <Box mt={3} display="flex" justifyContent="flex-end" gap={2}>
-              <Button onClick={() => setOpen(false)} color="secondary">
-                Cancel
-              </Button>
-              <Button type="submit" variant="contained" color="primary">
-                {editingUser ? 'Update' : 'Add'}
-              </Button>
-            </Box>
-          </Box>
-        </Modal>
       </Box>
     </Box>
   )

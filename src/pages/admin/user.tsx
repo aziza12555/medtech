@@ -10,14 +10,23 @@ import {
   useMediaQuery,
   useTheme,
   Card,
+  CardHeader,
+  CardContent,
   Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Box,
+  Typography,
+  Grid,
+
 } from "@mui/material";
 
 import { Edit, Trash2, UserPlus } from "lucide-react";
 import { getRoleDisplayName, validateEmail, validatePassword } from "../../utilits/utilt";
 import { useUsersStore } from "../../store/user";
 import type { User } from "../../types";
-
 
 // --- Form reducer ---
 type FormState = {
@@ -117,50 +126,20 @@ const UserPage = () => {
     setModalOpen(false);
   };
 
-  const columns = [
-    { key: "name", label: "Full Name" },
-    { key: "email", label: "Email" },
-    { key: "password", label: "Password" },
-    {
-      key: "role",
-      label: "Role",
-      render: (value: string) => getRoleDisplayName(value),
-    },
-    {
-      key: "actions",
-      label: "Actions",
-      render: (_: unknown, row: User) => (
-        <div className="flex gap-1 justify-end">
-          <Button
-            variant="contained"
-            color="primary"
-            size="small"
-            onClick={() => openEditUser(row)}
-            startIcon={<Edit size={16} />}
-          >
-            Edit
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            size="small"
-            onClick={() => {
-              setDeleteId(row.id);
-              setConfirmOpen(true);
-            }}
-            startIcon={<Trash2 size={16} />}
-          >
-            Delete
-          </Button>
-        </div>
-      ),
-    },
-  ];
+  const handleDelete = () => {
+    if (deleteId) {
+      deleteUser(deleteId);
+      setDeleteId(null);
+      setConfirmOpen(false);
+    }
+  };
 
   return (
     <>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">User Management</h1>
+      <Box mb={3} display="flex" justifyContent="space-between" marginLeft={"80px"} alignItems="center" >
+        <Typography variant="h4" component="h1" fontWeight="bold">
+          User Management
+        </Typography>
         <Button
           variant="contained"
           color="primary"
@@ -169,18 +148,67 @@ const UserPage = () => {
         >
           Add User
         </Button>
-      </div>
+      </Box>
 
-      <Card title="User List">
-        {users.length > 0 ? (
-          <Table data={users} columns={columns} />
-        ) : (
-          <p className="text-center text-gray-500 py-4">No users found</p>
-        )}
+      <Card >
+        <CardHeader title="User List" />
+        <CardContent>
+          {users.length > 0 ? (
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Full Name</TableCell>
+                  <TableCell>Email</TableCell>
+                  <TableCell>Password</TableCell>
+                  <TableCell>Role</TableCell>
+                  <TableCell align="right">Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {users.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell>{user.name}</TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>••••••••</TableCell>
+                    <TableCell>{getRoleDisplayName(user.role)}</TableCell>
+                    <TableCell align="right">
+                      <Box display="flex" gap={1} justifyContent="flex-end">
+                        <Button
+                          variant="outlined"
+                          color="primary"
+                          size="small"
+                          startIcon={<Edit size={16} />}
+                          onClick={() => openEditUser(user)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          size="small"
+                          startIcon={<Trash2 size={16} />}
+                          onClick={() => {
+                            setDeleteId(user.id);
+                            setConfirmOpen(true);
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <Typography textAlign="center" color="text.secondary" py={4}>
+              No users found
+            </Typography>
+          )}
+        </CardContent>
       </Card>
 
-    
-
+      {/* Add/Edit User Dialog */}
       <Dialog
         open={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -190,54 +218,67 @@ const UserPage = () => {
       >
         <DialogTitle>{editingUser ? "Edit User" : "Add New User"}</DialogTitle>
         <form onSubmit={handleSubmit}>
-          <DialogContent className="space-y-4">
-            <TextField
-              label="Full Name"
-              name="name"
-              value={formState.name}
-              onChange={(e) =>
-                dispatch({ type: "update", field: "name", value: e.target.value })
-              }
-              fullWidth
-              error={!!errors.name}
-              helperText={errors.name}
-            />
-            <TextField
-              label="Email"
-              name="email"
-              value={formState.email}
-              onChange={(e) =>
-                dispatch({ type: "update", field: "email", value: e.target.value })
-              }
-              fullWidth
-              error={!!errors.email}
-              helperText={errors.email}
-            />
-            <TextField
-              label="Password"
-              name="password"
-              type="password"
-              value={formState.password}
-              onChange={(e) =>
-                dispatch({ type: "update", field: "password", value: e.target.value })
-              }
-              fullWidth
-              error={!!errors.password}
-              helperText={errors.password}
-            />
-            <TextField
-              select
-              label="Role"
-              name="role"
-              value={formState.role}
-              onChange={(e) =>
-                dispatch({ type: "update", field: "role", value: e.target.value })
-              }
-              fullWidth
-            >
-              <MenuItem value="doctor">Doctor</MenuItem>
-              <MenuItem value="reception">Reception</MenuItem>
-            </TextField>
+          <DialogContent dividers>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <TextField
+                  label="Full Name"
+                  name="name"
+                  value={formState.name}
+                  onChange={(e) =>
+                    dispatch({ type: "update", field: "name", value: e.target.value })
+                  }
+                  fullWidth
+                  error={!!errors.name}
+                  helperText={errors.name}
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  label="Email"
+                  name="email"
+                  value={formState.email}
+                  onChange={(e) =>
+                    dispatch({ type: "update", field: "email", value: e.target.value })
+                  }
+                  fullWidth
+                  error={!!errors.email}
+                  helperText={errors.email}
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  label="Password"
+                  name="password"
+                  type="password"
+                  value={formState.password}
+                  onChange={(e) =>
+                    dispatch({ type: "update", field: "password", value: e.target.value })
+                  }
+                  fullWidth
+                  error={!!errors.password}
+                  helperText={errors.password}
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  select
+                  label="Role"
+                  name="role"
+                  value={formState.role}
+                  onChange={(e) =>
+                    dispatch({ type: "update", field: "role", value: e.target.value })
+                  }
+                  fullWidth
+                >
+                  <MenuItem value="doctor">Doctor</MenuItem>
+                  <MenuItem value="reception">Reception</MenuItem>
+                </TextField>
+              </Grid>
+            </Grid>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
             <Button onClick={() => setModalOpen(false)} color="error" variant="outlined">
@@ -248,6 +289,30 @@ const UserPage = () => {
             </Button>
           </DialogActions>
         </form>
+      </Dialog>
+
+      {/* Confirm Delete Dialog */}
+      <Dialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        fullScreen={fullScreen}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete this user? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmOpen(false)} variant="outlined" color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleDelete} variant="contained" color="error">
+            Delete
+          </Button>
+        </DialogActions>
       </Dialog>
     </>
   );
