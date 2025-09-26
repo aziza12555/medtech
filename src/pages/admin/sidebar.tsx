@@ -28,22 +28,20 @@ import MenuIcon from "@mui/icons-material/Menu";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 
 import { BarChart, User as UserIcon, Stethoscope, Receipt, Users, Settings, LogOut, KeyRound } from "lucide-react";
-import { Link, Outlet } from "react-router-dom";
-
+import { Link, Outlet, useNavigate } from "react-router-dom";
 
 const sidebarItems = [
   { name: "Dashboard", route: "/dashboard", icon: BarChart },
-  { name: "Profile", route: "/admin-profile", icon: UserIcon },
+  { name: "Profile", route: "/user", icon: UserIcon },
   { name: "Doctors", route: "/doctorfor-admin", icon: Stethoscope },
   { name: "Receptions", route: "/reception-panel", icon: Receipt },
   { name: "Patients", route: "/patient", icon: Users },
   { name: "Settings", route: "/settings", icon: Settings },
 ];
 
-
 const drawerWidth = 240;
 const colorPrimary = "#769382";
-const colorWhite = "#fff"
+const colorWhite = "#fff";
 
 const openedMixin = (theme: Theme): CSSObject => ({
   width: drawerWidth,
@@ -120,6 +118,7 @@ const AppBar = styled("div")<{ open?: boolean }>(({ theme, open }) => ({
 
 export default function MiniDrawer() {
   const theme = useTheme();
+  const navigate = useNavigate();
 
   // Holatlar
   const [open, setOpen] = React.useState(false);
@@ -130,7 +129,7 @@ export default function MiniDrawer() {
   const [currentPassword, setCurrentPassword] = React.useState("");
   const [newPassword, setNewPassword] = React.useState("");
 
-  const user = {  email: "admin@pc.local", role: "admin" };
+  const user = { email: "admin@pc.local", role: "admin" };
 
   // Handlerlar
   const toggleDrawer = () => setOpen((prev) => !prev);
@@ -159,7 +158,11 @@ export default function MiniDrawer() {
   };
 
   const handleLogout = () => {
-    alert("Logout");
+    // Bu yerda haqiqiy logout amallarini bajaring (tokenni o'chirish, API chaqiruv va hokazo)
+    alert("You are logged out");
+    // Misol uchun:
+    // localStorage.removeItem("authToken");
+    navigate("/login"); // logoutdan keyin login sahifasiga yo'naltirish
     handleProfileMenuClose();
   };
 
@@ -194,8 +197,6 @@ export default function MiniDrawer() {
           MedTech
         </Typography>
 
-   
-
         {/* Profil ikonka */}
         <Tooltip title="Profil sozlamalari">
           <IconButton
@@ -208,7 +209,7 @@ export default function MiniDrawer() {
             size="large"
             sx={{ ml: 2 }}
           >
-            <Avatar sx={{ width: 32, height: 32, bgcolor: "#fff", color: colorPrimary }}  />
+            <Avatar sx={{ width: 32, height: 32, bgcolor: "#fff", color: colorPrimary }} />
           </IconButton>
         </Tooltip>
 
@@ -238,8 +239,6 @@ export default function MiniDrawer() {
             Logout
           </MenuItem>
         </Menu>
-
-   
       </AppBar>
 
       {/* Yon panel */}
@@ -302,14 +301,13 @@ export default function MiniDrawer() {
 
         <Box sx={{ mt: "auto", p: 2 }}>
           <Divider sx={{ mb: 2, borderColor: colorPrimary }} />
-          <Link to="/" style={{ textDecoration: "none" }}>
-            <ListItemButton sx={{ borderRadius: 1, color: colorPrimary }}>
-              <ListItemIcon sx={{ color: colorPrimary }}>
-                <LogOut />
-              </ListItemIcon>
-              <ListItemText primary="LogOut" />
-            </ListItemButton>
-          </Link>
+          {/* Logout tugmasi */}
+          <ListItemButton onClick={handleLogout} sx={{ borderRadius: 1, color: colorPrimary, cursor: "pointer" }}>
+            <ListItemIcon sx={{ color: colorPrimary }}>
+              <LogOut />
+            </ListItemIcon>
+            <ListItemText primary="Logout" />
+          </ListItemButton>
         </Box>
       </Drawer>
 

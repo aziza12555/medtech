@@ -1,15 +1,20 @@
+// store/user.ts
 import { create } from 'zustand';
-import type{ UsersStore, User } from '../types';
 import { generateId } from '../utilits/utilt';
+import type { CreateUserDto, User, UsersStore } from '../types';
 
 export const useUsersStore = create<UsersStore>((set, get) => ({
   users: JSON.parse(localStorage.getItem('medtech-users') || '[]'),
 
-  addUser: (userData) => {
+  addUser: async (userData: CreateUserDto) => {
     const newUser: User = {
-      ...userData,
       id: generateId(),
-      createdAt: new Date().toISOString(),
+      email: userData.email,
+      role: userData.role,
+      mustChangePassword: false,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      temporaryPassword: userData.temporaryPassword,
     };
 
     const updatedUsers = [...get().users, newUser];
@@ -17,21 +22,21 @@ export const useUsersStore = create<UsersStore>((set, get) => ({
     set({ users: updatedUsers });
   },
 
-  updateUser: (id, userData) => {
-    const updatedUsers = get().users.map(user => 
-      user.id === id ? { ...user, ...userData } : user
+  updateUser: async (id, partialUser) => {
+    const updatedUsers = get().users.map((user) =>
+      user.id === id ? { ...user, ...partialUser } : user
     );
     localStorage.setItem('medtech-users', JSON.stringify(updatedUsers));
     set({ users: updatedUsers });
   },
 
-  deleteUser: (id) => {
-    const updatedUsers = get().users.filter(user => user.id !== id);
+  deleteUser: async (id) => {
+    const updatedUsers = get().users.filter((user) => user.id !== id);
     localStorage.setItem('medtech-users', JSON.stringify(updatedUsers));
     set({ users: updatedUsers });
   },
 
   getUsersByRole: (role) => {
-    return get().users.filter(user => user.role === role);
+    return get().users.filter((user) => user.role === role);
   },
 }));

@@ -18,8 +18,8 @@ import {
 } from "@mui/material";
 
 const initialDoctors = [
-  { id: "1", name: "Dr. John Doe", specialty: "Cardiology", email: "john@example.com" },
-  { id: "2", name: "Dr. Jane Smith", specialty: "Neurology", email: "jane@example.com" },
+  { id: "1", name: "Dr. Aziz", specialty: "Stomotolog", email: "aziz@pc.local" },
+  { id: "2", name: "Dr. Dilnoza", specialty: "Pediatr", email: "dilnoza@example.com" },
 ];
 
 const DoctorforAdmin = () => {
@@ -91,14 +91,14 @@ const DoctorforAdmin = () => {
   };
 
   return (
-    <Box p={3}>
-      <Typography variant="h4" gutterBottom>
+    <Box p={3} sx={{ pb: 8, overflowX: "auto" }}>
+      <Typography variant="h4" sx={{ ml: "50px"}} gutterBottom>
         Doctor Management Panel (Admin)
       </Typography>
-      <Button variant="contained" color="primary" onClick={openAddDoctor}>
+      <Button variant="contained" sx={{ ml: "50px"}} color="primary" onClick={openAddDoctor}>
         Add Doctor
       </Button>
-      <Table sx={{ mt: 2 }}>
+      <Table sx={{ mt: 2, ml: "30px" }}>
         <TableHead>
           <TableRow>
             <TableCell>Name</TableCell>
@@ -114,18 +114,10 @@ const DoctorforAdmin = () => {
               <TableCell>{doctor.specialty}</TableCell>
               <TableCell>{doctor.email}</TableCell>
               <TableCell align="right">
-                <Button
-                  size="small"
-                  onClick={() => openEditDoctor(doctor)}
-                  sx={{ mr: 1 }}
-                >
+                <Button size="small" onClick={() => openEditDoctor(doctor)} sx={{ mr: 1 }}>
                   Edit
                 </Button>
-                <Button
-                  size="small"
-                  color="error"
-                  onClick={() => openConfirmDelete(doctor.id)}
-                >
+                <Button size="small" color="error" onClick={() => openConfirmDelete(doctor.id)}>
                   Delete
                 </Button>
               </TableCell>
@@ -176,12 +168,9 @@ const DoctorforAdmin = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Confirm Delete Dialog */}
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
         <DialogTitle>Confirm Delete</DialogTitle>
-        <DialogContent>
-          Are you sure you want to delete this doctor?
-        </DialogContent>
+        <DialogContent>Are you sure you want to delete this doctor?</DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
           <Button onClick={handleDelete} color="error" variant="contained">
@@ -190,14 +179,13 @@ const DoctorforAdmin = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Snackbar Notification */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
-        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: "100%" }}>
           {snackbar.message}
         </Alert>
       </Snackbar>

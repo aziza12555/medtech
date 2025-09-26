@@ -11,6 +11,7 @@ import DoctorPanel from '../pages/doctor/doctor';
 import { ReceptionPanel } from '../pages/reception/reception';
 import UserPage from '../pages/admin/user';
 import MiniDrawer from '../pages/admin/sidebar';
+import DoctorforAdmin from '../pages/doctor/doctorfor-admin';
 
 export const AppRoutes: React.FC = () => {
   const { isAuthenticated, user, fetchMe, isLoading } = useAuthStore();
@@ -60,11 +61,27 @@ export const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           }
         />
+         <Route
+          path="/user"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <UserPage/>
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/doctor"
           element={
             <ProtectedRoute allowedRoles={['doctor']}>
               <DoctorPanel />
+            </ProtectedRoute>
+          }
+        />
+         <Route
+          path="/doctorfor-admin"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <DoctorforAdmin/>
             </ProtectedRoute>
           }
         />

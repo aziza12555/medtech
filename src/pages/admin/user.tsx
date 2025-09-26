@@ -20,39 +20,41 @@ import {
   Box,
   Typography,
   Grid,
-
 } from "@mui/material";
-
 import { Edit, Trash2, UserPlus } from "lucide-react";
-import { getRoleDisplayName, validateEmail, validatePassword } from "../../utilits/utilt";
 import { useUsersStore } from "../../store/user";
 import type { User } from "../../types";
+import { validateEmail, validatePassword } from "../../utilits/utilt";
 
-// --- Form reducer ---
 type FormState = {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
-  password: string;
   role: "doctor" | "reception";
+  temporaryPassword: string;
 };
-type FormAction = { type: string; field?: string; value?: string } | { type: "reset"; payload: FormState };
+
+type FormAction =
+  | { type: "update"; field: string; value: string }
+  | { type: "reset"; payload: FormState };
+
+const defaultFormState: FormState = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  role: "doctor",
+  temporaryPassword: "",
+};
 
 const formReducer = (state: FormState, action: FormAction): FormState => {
   switch (action.type) {
     case "update":
-      return { ...state, [action.field!]: action.value! };
+      return { ...state, [action.field]: action.value };
     case "reset":
       return action.payload;
     default:
       return state;
   }
-};
-
-const defaultFormState: FormState = {
-  name: "",
-  email: "",
-  password: "",
-  role: "doctor",
 };
 
 const UserPage = () => {
@@ -79,10 +81,11 @@ const UserPage = () => {
     dispatch({
       type: "reset",
       payload: {
-        name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
         email: user.email,
-        password: user.password || "",
         role: user.role as "doctor" | "reception",
+        temporaryPassword: user.temporaryPassword || "",
       },
     });
     setModalOpen(true);
@@ -90,67 +93,60 @@ const UserPage = () => {
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    const { name, email, password } = formState;
+    const { firstName, lastName, email, temporaryPassword } = formState;
 
-    if (!name.trim()) newErrors.name = "Name is required";
-    if (!email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!validateEmail(email)) {
-      newErrors.email = "Invalid email format";
-    } else if (
-      users.some((u) => u.email === email && u.id !== editingUser?.id)
-    ) {
-      newErrors.email = "Email already exists";
-    }
-
-    if (!password.trim()) {
-      newErrors.password = "Password is required";
-    } else if (!validatePassword(password)) {
-      newErrors.password = "Minimum 8 characters required";
-    }
+    if (!firstName.trim()) newErrors.firstName = "First name is required";
+    if (!lastName.trim()) newErrors.lastName = "Last name is required";
+    if (!email.trim()) newErrors.email = "Email is required";
+    else if (!validateEmail(email)) newErrors.email = "Invalid email";
+    if (!temporaryPassword.trim())
+      newErrors.temporaryPassword = "Password is required";
+    else if (!validatePassword(temporaryPassword))
+      newErrors.temporaryPassword = "Minimum 8 characters";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     if (editingUser) {
-      updateUser(editingUser.id, formState);
+      await updateUser(editingUser.id, {
+        ...formState,
+      });
     } else {
-      addUser(formState);
+      await addUser(formState);
     }
 
     setModalOpen(false);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (deleteId) {
-      deleteUser(deleteId);
+      await deleteUser(deleteId);
       setDeleteId(null);
       setConfirmOpen(false);
     }
   };
 
   return (
-    <>
-      <Box mb={3} display="flex" justifyContent="space-between" marginLeft={"80px"} alignItems="center" >
-        <Typography variant="h4" component="h1" fontWeight="bold">
+    <Box px={10}>
+      <Box mb={3} display="flex" justifyContent="space-between" alignItems="center">
+        <Typography variant="h4" fontWeight="bold">
           User Management
         </Typography>
         <Button
           variant="contained"
-          color="primary"
-          startIcon={<UserPlus size={20} />}
+          startIcon={<UserPlus />}
           onClick={openAddUser}
         >
           Add User
         </Button>
       </Box>
 
-      <Card >
+      <Card>
         <CardHeader title="User List" />
         <CardContent>
           {users.length > 0 ? (
@@ -159,7 +155,6 @@ const UserPage = () => {
                 <TableRow>
                   <TableCell>Full Name</TableCell>
                   <TableCell>Email</TableCell>
-                  <TableCell>Password</TableCell>
                   <TableCell>Role</TableCell>
                   <TableCell align="right">Actions</TableCell>
                 </TableRow>
@@ -167,17 +162,15 @@ const UserPage = () => {
               <TableBody>
                 {users.map((user) => (
                   <TableRow key={user.id}>
-                    <TableCell>{user.name}</TableCell>
+                    <TableCell>{user.firstName} {user.lastName}</TableCell>
                     <TableCell>{user.email}</TableCell>
-                    <TableCell>••••••••</TableCell>
-                    <TableCell>{getRoleDisplayName(user.role)}</TableCell>
+                    <TableCell>{user.role}</TableCell>
                     <TableCell align="right">
                       <Box display="flex" gap={1} justifyContent="flex-end">
                         <Button
                           variant="outlined"
-                          color="primary"
                           size="small"
-                          startIcon={<Edit size={16} />}
+                          startIcon={<Edit />}
                           onClick={() => openEditUser(user)}
                         >
                           Edit
@@ -186,7 +179,7 @@ const UserPage = () => {
                           variant="outlined"
                           color="error"
                           size="small"
-                          startIcon={<Trash2 size={16} />}
+                          startIcon={<Trash2 />}
                           onClick={() => {
                             setDeleteId(user.id);
                             setConfirmOpen(true);
@@ -201,14 +194,11 @@ const UserPage = () => {
               </TableBody>
             </Table>
           ) : (
-            <Typography textAlign="center" color="text.secondary" py={4}>
-              No users found
-            </Typography>
+            <Typography align="center" py={4}>No users found</Typography>
           )}
         </CardContent>
       </Card>
 
-      {/* Add/Edit User Dialog */}
       <Dialog
         open={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -220,59 +210,54 @@ const UserPage = () => {
         <form onSubmit={handleSubmit}>
           <DialogContent dividers>
             <Grid container spacing={2}>
-              <Grid item xs={12}>
+              <Grid item xs={12} sm={6}>
                 <TextField
-                  label="Full Name"
-                  name="name"
-                  value={formState.name}
-                  onChange={(e) =>
-                    dispatch({ type: "update", field: "name", value: e.target.value })
-                  }
+                  label="First Name"
                   fullWidth
-                  error={!!errors.name}
-                  helperText={errors.name}
+                  value={formState.firstName}
+                  onChange={(e) => dispatch({ type: "update", field: "firstName", value: e.target.value })}
+                  error={!!errors.firstName}
+                  helperText={errors.firstName}
                 />
               </Grid>
-
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Last Name"
+                  fullWidth
+                  value={formState.lastName}
+                  onChange={(e) => dispatch({ type: "update", field: "lastName", value: e.target.value })}
+                  error={!!errors.lastName}
+                  helperText={errors.lastName}
+                />
+              </Grid>
               <Grid item xs={12}>
                 <TextField
                   label="Email"
-                  name="email"
-                  value={formState.email}
-                  onChange={(e) =>
-                    dispatch({ type: "update", field: "email", value: e.target.value })
-                  }
                   fullWidth
+                  value={formState.email}
+                  onChange={(e) => dispatch({ type: "update", field: "email", value: e.target.value })}
                   error={!!errors.email}
                   helperText={errors.email}
                 />
               </Grid>
-
               <Grid item xs={12}>
                 <TextField
-                  label="Password"
-                  name="password"
+                  label="Temporary Password"
                   type="password"
-                  value={formState.password}
-                  onChange={(e) =>
-                    dispatch({ type: "update", field: "password", value: e.target.value })
-                  }
                   fullWidth
-                  error={!!errors.password}
-                  helperText={errors.password}
+                  value={formState.temporaryPassword}
+                  onChange={(e) => dispatch({ type: "update", field: "temporaryPassword", value: e.target.value })}
+                  error={!!errors.temporaryPassword}
+                  helperText={errors.temporaryPassword}
                 />
               </Grid>
-
               <Grid item xs={12}>
                 <TextField
                   select
                   label="Role"
-                  name="role"
-                  value={formState.role}
-                  onChange={(e) =>
-                    dispatch({ type: "update", field: "role", value: e.target.value })
-                  }
                   fullWidth
+                  value={formState.role}
+                  onChange={(e) => dispatch({ type: "update", field: "role", value: e.target.value })}
                 >
                   <MenuItem value="doctor">Doctor</MenuItem>
                   <MenuItem value="reception">Reception</MenuItem>
@@ -281,17 +266,16 @@ const UserPage = () => {
             </Grid>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button onClick={() => setModalOpen(false)} color="error" variant="outlined">
+            <Button onClick={() => setModalOpen(false)} variant="outlined" color="error">
               Cancel
             </Button>
-            <Button type="submit" variant="contained" color="primary">
+            <Button type="submit" variant="contained">
               {editingUser ? "Update" : "Create"}
             </Button>
           </DialogActions>
         </form>
       </Dialog>
 
-      {/* Confirm Delete Dialog */}
       <Dialog
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
@@ -306,16 +290,25 @@ const UserPage = () => {
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmOpen(false)} variant="outlined" color="primary">
+          <Button
+            onClick={() => setConfirmOpen(false)}
+            variant="outlined"
+            color="primary"
+          >
             Cancel
           </Button>
-          <Button onClick={handleDelete} variant="contained" color="error">
+          <Button
+            onClick={handleDelete}
+            variant="contained"
+            color="error"
+          >
             Delete
           </Button>
         </DialogActions>
       </Dialog>
-    </>
+    </Box>
   );
 };
 
 export default UserPage;
+
