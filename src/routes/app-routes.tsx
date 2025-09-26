@@ -14,17 +14,22 @@ import MiniDrawer from '../pages/admin/sidebar';
 
 export const AppRoutes: React.FC = () => {
   const { isAuthenticated, user, fetchMe, isLoading } = useAuthStore();
-  console.log(isAuthenticated,'s');
-  
+
   useEffect(() => {
-    fetchMe(); 
+    fetchMe();
   }, [fetchMe]);
+
+  // drawer state
+  const [mobileOpen, setMobileOpen] = React.useState(false);
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
 
   const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div className="min-h-screen flex bg-gray-50">
-      <MiniDrawer/>
+      <MiniDrawer mobileOpen={mobileOpen} handleDrawerToggle={handleDrawerToggle} />
       <div className="flex flex-col flex-1">
-        <Navbar />
+        <Navbar onDrawerToggle={handleDrawerToggle} />
         <main className="flex-1 p-4 overflow-y-auto">{children}</main>
       </div>
     </div>
@@ -46,10 +51,7 @@ export const AppRoutes: React.FC = () => {
   return (
     <Layout>
       <Routes>
-        <Route
-          path="/signin"
-          element={<Navigate to={`/${user?.role}`} replace />}
-        />
+        <Route path="/signin" element={<Navigate to={`/${user?.role}`} replace />} />
         <Route
           path="/admin"
           element={

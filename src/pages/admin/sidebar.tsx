@@ -1,51 +1,49 @@
 import * as React from "react";
+import { styled, useTheme, type Theme, type CSSObject } from "@mui/material/styles";
 import {
-  styled,
-  type Theme,
-  type CSSObject,
-} from "@mui/material/styles";
-import Box from "@mui/material/Box";
-import MuiDrawer from "@mui/material/Drawer";
-import MuiAppBar, {
-  type AppBarProps as MuiAppBarProps,
-} from "@mui/material/AppBar";
-import Toolbar from "@mui/material/Toolbar";
-import List from "@mui/material/List";
-import CssBaseline from "@mui/material/CssBaseline";
-import Divider from "@mui/material/Divider";
-import ListItem from "@mui/material/ListItem";
-import ListItemButton from "@mui/material/ListItemButton";
-import ListItemIcon from "@mui/material/ListItemIcon";
-import ListItemText from "@mui/material/ListItemText";
-
-import {
+  Box,
+  CssBaseline,
+  Divider,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
   Avatar,
-  IconButton,
   Menu,
   MenuItem,
   Typography,
   Tooltip,
-  ListItemIcon as MuiListItemIcon,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Button,
+  IconButton,
 } from "@mui/material";
+
+import MuiDrawer from "@mui/material/Drawer";
 import MenuIcon from "@mui/icons-material/Menu";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import AccountCircle from "@mui/icons-material/AccountCircle";
-import LogoutIcon from "@mui/icons-material/Logout";
-import SettingsIcon from "@mui/icons-material/Settings";
-import { Link, Outlet, useNavigate } from "react-router-dom";
-import { BarChart, Receipt, Settings2Icon, Stethoscope, User, Users } from "lucide-react";
-import { Navbar } from "../shared/navbar";
 
-const sidebar = [
+import { BarChart, User as UserIcon, Stethoscope, Receipt, Users, Settings, LogOut, KeyRound } from "lucide-react";
+import { Link, Outlet } from "react-router-dom";
+
+
+const sidebarItems = [
   { name: "Dashboard", route: "/dashboard", icon: BarChart },
-  { name: "Profile", route: "/admin-profile", icon: User },
+  { name: "Profile", route: "/admin-profile", icon: UserIcon },
   { name: "Doctors", route: "/doctorfor-admin", icon: Stethoscope },
   { name: "Receptions", route: "/reception-panel", icon: Receipt },
   { name: "Patients", route: "/patient", icon: Users },
-  { name: "Settings", route: "/settings", icon: Settings2Icon },
+  { name: "Settings", route: "/settings", icon: Settings },
 ];
 
+
 const drawerWidth = 240;
+const colorPrimary = "#769382";
+const colorWhite = "#fff"
 
 const openedMixin = (theme: Theme): CSSObject => ({
   width: drawerWidth,
@@ -71,18 +69,40 @@ const closedMixin = (theme: Theme): CSSObject => ({
 const DrawerHeader = styled("div")(({ theme }) => ({
   display: "flex",
   alignItems: "center",
-  justifyContent: "flex-end",
+  justifyContent: "space-between",
   padding: theme.spacing(0, 1),
   ...theme.mixins.toolbar,
 }));
 
-interface AppBarProps extends MuiAppBarProps {
-  open?: boolean;
-}
+const Drawer = styled(MuiDrawer, { shouldForwardProp: (prop) => prop !== "open" })(
+  ({ theme, open }) => ({
+    width: drawerWidth,
+    flexShrink: 0,
+    whiteSpace: "nowrap",
+    boxSizing: "border-box",
+    ...(open
+      ? {
+          ...openedMixin(theme),
+          "& .MuiDrawer-paper": openedMixin(theme),
+        }
+      : {
+          ...closedMixin(theme),
+          "& .MuiDrawer-paper": closedMixin(theme),
+        }),
+  }),
+);
 
-const AppBar = styled(MuiAppBar, {
-  shouldForwardProp: (prop) => prop !== "open",
-})<AppBarProps>(({ theme, open }) => ({
+const AppBar = styled("div")<{ open?: boolean }>(({ theme, open }) => ({
+  position: "fixed",
+  top: 0,
+  left: 0,
+  right: 0,
+  height: 64,
+  display: "flex",
+  alignItems: "center",
+  padding: theme.spacing(0, 2),
+  color: "#fff",
+  backgroundColor: colorPrimary,
   zIndex: theme.zIndex.drawer + 1,
   transition: theme.transitions.create(["width", "margin"], {
     easing: theme.transitions.easing.sharp,
@@ -98,154 +118,254 @@ const AppBar = styled(MuiAppBar, {
   }),
 }));
 
-const Drawer = styled(MuiDrawer, {
-  shouldForwardProp: (prop) => prop !== "open",
-})(({ theme, open }) => ({
-  width: drawerWidth,
-  flexShrink: 0,
-  whiteSpace: "nowrap",
-  boxSizing: "border-box",
-  ...(open
-    ? {
-        ...openedMixin(theme),
-        "& .MuiDrawer-paper": openedMixin(theme),
-      }
-    : {
-        ...closedMixin(theme),
-        "& .MuiDrawer-paper": closedMixin(theme),
-      }),
-}));
-
 export default function MiniDrawer() {
+  const theme = useTheme();
+
+  // Holatlar
   const [open, setOpen] = React.useState(false);
-  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
-  const navigate = useNavigate();
+  const [profileAnchorEl, setProfileAnchorEl] = React.useState<null | HTMLElement>(null);
+  const [notificationsAnchorEl, setNotificationsAnchorEl] = React.useState<null | HTMLElement>(null);
+  const [openPasswordDialog, setOpenPasswordDialog] = React.useState(false);
 
-  const handleDrawerOpen = () => {
-    setOpen(true);
+  const [currentPassword, setCurrentPassword] = React.useState("");
+  const [newPassword, setNewPassword] = React.useState("");
+
+  const user = {  email: "admin@pc.local", role: "admin" };
+
+  // Handlerlar
+  const toggleDrawer = () => setOpen((prev) => !prev);
+
+  const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => setProfileAnchorEl(event.currentTarget);
+  const handleProfileMenuClose = () => setProfileAnchorEl(null);
+
+  const handleNotificationsMenuOpen = (event: React.MouseEvent<HTMLElement>) => setNotificationsAnchorEl(event.currentTarget);
+  const handleNotificationsMenuClose = () => setNotificationsAnchorEl(null);
+
+  const openChangePasswordDialog = () => {
+    setOpenPasswordDialog(true);
+    handleProfileMenuClose();
   };
+  const closeChangePasswordDialog = () => setOpenPasswordDialog(false);
 
-  const handleDrawerClose = () => {
-    setOpen(false);
-  };
-
-  const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleProfileClick = () => {
-    navigate("/admin-profile");
-    handleMenuClose();
-  };
-
-  const handleSettingsClick = () => {
-    navigate("/settings");
-    handleMenuClose();
-  };
-
-  const logoutUser = () => {
-    // Tozalash
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+  const handlePasswordChange = () => {
+    if (!currentPassword || !newPassword) {
+      alert("Please fill both password fields.");
+      return;
+    }
+    alert(`Change password from ${currentPassword} to ${newPassword}`);
+    setCurrentPassword("");
+    setNewPassword("");
+    closeChangePasswordDialog();
   };
 
   const handleLogout = () => {
-    logoutUser();
-    navigate("/login", { replace: true });  // replace: true page history'dan olib tashlaydi
-    handleMenuClose();
+    alert("Logout");
+    handleProfileMenuClose();
   };
-
-  const handleSidebarLogout = () => {
-    logoutUser();
-    navigate("/login", { replace: true });
-  };
-
-  const menuId = "primary-search-account-menu";
 
   return (
     <Box sx={{ display: "flex" }}>
       <CssBaseline />
-      <Navbar/>
+
+      {/* Navbar */}
+      <AppBar open={open}>
+        <IconButton
+          color="inherit"
+          aria-label={open ? "close drawer" : "open drawer"}
+          onClick={toggleDrawer}
+          edge="start"
+          sx={{ mr: 2, ...(open && { display: "none" }) }}
+          size="large"
+        >
+          <MenuIcon htmlColor="#fff" />
+        </IconButton>
+        <IconButton
+          color="inherit"
+          aria-label="close drawer"
+          onClick={toggleDrawer}
+          edge="start"
+          sx={{ mr: 2, display: open ? "inline-flex" : "none" }}
+          size="large"
+        >
+          <ChevronLeftIcon htmlColor="#fff" />
+        </IconButton>
+
+        <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+          MedTech
+        </Typography>
+
+   
+
+        {/* Profil ikonka */}
+        <Tooltip title="Profil sozlamalari">
+          <IconButton
+            edge="end"
+            aria-label="account of current user"
+            aria-controls="profile-menu"
+            aria-haspopup="true"
+            onClick={handleProfileMenuOpen}
+            color="inherit"
+            size="large"
+            sx={{ ml: 2 }}
+          >
+            <Avatar sx={{ width: 32, height: 32, bgcolor: "#fff", color: colorPrimary }}  />
+          </IconButton>
+        </Tooltip>
+
+        {/* Profil menyu */}
+        <Menu
+          id="profile-menu"
+          anchorEl={profileAnchorEl}
+          open={Boolean(profileAnchorEl)}
+          onClose={handleProfileMenuClose}
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          transformOrigin={{ vertical: "top", horizontal: "right" }}
+          PaperProps={{ sx: { color: colorPrimary } }}
+        >
+          <MenuItem disabled>
+            <Box>
+              <Typography variant="body2">{user.email}</Typography>
+              <Typography variant="body2">Role: {user.role}</Typography>
+            </Box>
+          </MenuItem>
+          <Divider sx={{ borderColor: colorPrimary }} />
+          <MenuItem onClick={openChangePasswordDialog} sx={{ display: "flex", alignItems: "center", color: colorPrimary }}>
+            <KeyRound size={16} style={{ marginRight: 8 }} />
+            Change Password
+          </MenuItem>
+          <MenuItem onClick={handleLogout} sx={{ display: "flex", alignItems: "center", color: colorPrimary }}>
+            <LogOut size={16} style={{ marginRight: 8 }} />
+            Logout
+          </MenuItem>
+        </Menu>
+
+   
+      </AppBar>
+
+      {/* Yon panel */}
       <Drawer variant="permanent" open={open}>
         <DrawerHeader>
-          <IconButton onClick={handleDrawerClose}>
-            <ChevronLeftIcon />
-          </IconButton>
+          <Typography
+            variant="h6"
+            component="div"
+            sx={{
+              flexGrow: 1,
+              textAlign: "center",
+              fontWeight: "bold",
+              background: colorPrimary,
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              userSelect: "none",
+            }}
+          >
+            {open ? "MedTech" : "MT"}
+          </Typography>
         </DrawerHeader>
 
-        <Divider />
+        <Divider sx={{ borderColor: colorPrimary }} />
 
         <List>
-          {sidebar.map((item) => {
-            const Icon = item.icon;
-            return (
-              <ListItem key={item.name} disablePadding sx={{ display: "block" }}>
+          {sidebarItems.map(({ name, route, icon: Icon }) => (
+            <Link key={name} to={route} style={{ textDecoration: "none", color: colorWhite }}>
+              <ListItem disablePadding sx={{ display: "block" }}>
                 <ListItemButton
-                  component={Link}
-                  to={item.route}
-                  sx={{
-                    minHeight: 48,
-                    justifyContent: open ? "initial" : "center",
-                    px: 2.5,
-                  }}
+                  sx={[
+                    {
+                      minHeight: 48,
+                      px: 2.5,
+                      borderRadius: 1,
+                      mx: 1,
+                      mb: 0.5,
+                      color: colorPrimary,
+                    },
+                    open ? { justifyContent: "initial" } : { justifyContent: "center" },
+                  ]}
                 >
                   <ListItemIcon
-                    sx={{
-                      minWidth: 0,
-                      mr: open ? 3 : "auto",
-                      justifyContent: "center",
-                    }}
+                    sx={[
+                      {
+                        minWidth: 0,
+                        justifyContent: "center",
+                        color: colorPrimary,
+                      },
+                      open ? { mr: 3 } : { mr: "auto" },
+                    ]}
                   >
-                    <Icon size={20} />
+                    <Icon />
                   </ListItemIcon>
-                  <ListItemText primary={item.name} sx={{ opacity: open ? 1 : 0 }} />
+                  <ListItemText primary={name} sx={open ? { opacity: 1 } : { opacity: 0 }} />
                 </ListItemButton>
               </ListItem>
-            );
-          })}
+            </Link>
+          ))}
         </List>
 
-        <Divider />
-
-        {/* Sidebar chiqish tugmasi */}
-        <List>
-          <ListItem disablePadding sx={{ display: "block" }}>
-            <ListItemButton
-              onClick={handleSidebarLogout}
-              sx={{
-                minHeight: 48,
-                justifyContent: open ? "initial" : "center",
-                px: 2.5,
-                color: "error.main",
-                "&:hover": {
-                  backgroundColor: "error.light",
-                  color: "white",
-                },
-              }}
-            >
-              <ListItemIcon
-                sx={{
-                  minWidth: 0,
-                  mr: open ? 3 : "auto",
-                  justifyContent: "center",
-                  color: "inherit",
-                }}
-              >
-                <LogoutIcon />
+        <Box sx={{ mt: "auto", p: 2 }}>
+          <Divider sx={{ mb: 2, borderColor: colorPrimary }} />
+          <Link to="/" style={{ textDecoration: "none" }}>
+            <ListItemButton sx={{ borderRadius: 1, color: colorPrimary }}>
+              <ListItemIcon sx={{ color: colorPrimary }}>
+                <LogOut />
               </ListItemIcon>
-              <ListItemText primary="Chiqish" sx={{ opacity: open ? 1 : 0 }} />
+              <ListItemText primary="LogOut" />
             </ListItemButton>
-          </ListItem>
-        </List>
+          </Link>
+        </Box>
       </Drawer>
 
+      {/* Asosiy kontent */}
       <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
         <DrawerHeader />
         <Outlet />
+
+        {/* Parol o'zgartirish dialogi */}
+        <Dialog open={openPasswordDialog} onClose={closeChangePasswordDialog}>
+          <DialogTitle sx={{ color: colorPrimary }}>Change Password</DialogTitle>
+          <DialogContent>
+            <TextField
+              label="Current Password"
+              type="password"
+              fullWidth
+              margin="dense"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              sx={{
+                "& .MuiInputLabel-root": { color: colorPrimary },
+                "& .MuiInputBase-input": { color: colorPrimary },
+                "& .MuiOutlinedInput-root": {
+                  "& fieldset": { borderColor: colorPrimary },
+                  "&:hover fieldset": { borderColor: colorPrimary },
+                  "&.Mui-focused fieldset": { borderColor: colorPrimary },
+                },
+              }}
+            />
+            <TextField
+              label="New Password"
+              type="password"
+              fullWidth
+              margin="dense"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              sx={{
+                "& .MuiInputLabel-root": { color: colorPrimary },
+                "& .MuiInputBase-input": { color: colorPrimary },
+                "& .MuiOutlinedInput-root": {
+                  "& fieldset": { borderColor: colorPrimary },
+                  "&:hover fieldset": { borderColor: colorPrimary },
+                  "&.Mui-focused fieldset": { borderColor: colorPrimary },
+                },
+              }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={closeChangePasswordDialog} sx={{ color: colorPrimary }}>
+              Cancel
+            </Button>
+            <Button variant="contained" onClick={handlePasswordChange} sx={{ backgroundColor: colorPrimary }}>
+              Save
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </Box>
   );

@@ -24,8 +24,8 @@ export default function ClinicAnalyticsReport() {
             <YAxis />
             <Tooltip />
             <Legend verticalAlign="top" height={36}/>
-            <Line type="monotone" dataKey="patients" stroke="#1976d2" strokeWidth={3} name="Bemorlar soni" />
-            <Line type="monotone" dataKey="visits" stroke="#f4a261" strokeWidth={3} name="Tashriflar soni" />
+            <Line type="monotone" dataKey="patients" stroke="#769382" strokeWidth={3} name="Bemorlar soni" />
+            <Line type="monotone" dataKey="visits" stroke="#beb5a9" strokeWidth={3} name="Tashriflar soni" />
           </LineChart>
         </ResponsiveContainer>
       </Box>

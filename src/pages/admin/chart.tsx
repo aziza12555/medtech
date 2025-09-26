@@ -38,8 +38,8 @@ const Example = () => {
             <YAxis />
             <Tooltip />
             <Legend />
-            <Bar dataKey="morning" fill="#8884d8" name="Ertalabdan Abetgacha" />
-            <Bar dataKey="evening" fill="#82ca9d" name="Abetdan Kechgacha" />
+            <Bar dataKey="morning" fill="#769382" name="Ertalabdan Abetgacha" />
+            <Bar dataKey="evening" fill="#e3eed4" name="Abetdan Kechgacha" />
           </BarChart>
         </ResponsiveContainer>
       </div>
