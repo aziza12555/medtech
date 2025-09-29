@@ -1,8 +1,5 @@
-
 const Reception = () => {
-  return (
-    <div>Reception</div>
-  )
-}
+  return <div>Reception</div>;
+};
 
-export default Reception
+export default Reception;

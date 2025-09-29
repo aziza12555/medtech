@@ -2,7 +2,9 @@ import axios from "axios";
 import { useAuth } from "../store/auth-store";
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "https://supercultivated-neumic-rose.ngrok-free.dev",
+  baseURL:
+    import.meta.env.VITE_API_URL ||
+    "https://supercultivated-neumic-rose.ngrok-free.dev",
   withCredentials: true,
 });
 

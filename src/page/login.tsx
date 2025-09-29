@@ -11,7 +11,7 @@ import {
   TextField,
   Button,
   Link,
-  Box
+  Box,
 } from "@mui/material";
 
 const Login = () => {
@@ -34,7 +34,12 @@ const Login = () => {
   }
 
   return (
-    <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
+    <Box
+      display="flex"
+      justifyContent="center"
+      alignItems="center"
+      height="100vh"
+    >
       <Card sx={{ maxWidth: 400, width: "100%", padding: 2 }}>
         <CardHeader title="Login to your account" />
         <CardContent>
@@ -64,7 +69,12 @@ const Login = () => {
                   Forgot your password?
                 </Link>
               </Box>
-              <Button type="submit" variant="contained" color="primary" fullWidth>
+              <Button
+                type="submit"
+                variant="contained"
+                color="primary"
+                fullWidth
+              >
                 Login
               </Button>
             </Box>
