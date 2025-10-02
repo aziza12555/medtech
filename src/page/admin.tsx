@@ -1,4 +1,6 @@
+// src/components/MedTechDrawer.tsx
 import * as React from "react";
+import { useNavigate } from "react-router-dom"; // <-- import qildik
 import AppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -12,12 +14,10 @@ import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import MenuIcon from "@mui/icons-material/Menu";
 import HomeIcon from "@mui/icons-material/Home";
-import PeopleIcon from "@mui/icons-material/People";
-import SettingsIcon from "@mui/icons-material/Settings";
-import { FaUserDoctor } from "react-icons/fa6";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
-import { FaUserTie } from "react-icons/fa";
+import Profile from "../components/navigate/profile";
+import { FaUser, FaUsers } from "react-icons/fa";
 
 const drawerWidth = 240;
 
@@ -27,19 +27,17 @@ interface Props {
 
 export default function MedTechDrawer(props: Props) {
   const { window } = props;
-  const [drawerOpen, setDrawerOpen] = React.useState(true); // Sidebar default ochiq
+  const [drawerOpen, setDrawerOpen] = React.useState(true);
+  const navigate = useNavigate(); // <-- useNavigate ni chaqirish
 
   const handleDrawerToggle = () => {
     setDrawerOpen((prev) => !prev);
   };
 
   const menuItems = [
-    { text: "Dashboard", icon: <HomeIcon /> },
-    { text: "Admin Page", icon: <MenuIcon /> },
-    { text: "Patients", icon: <PeopleIcon /> },
-    { text: "Doktors", icon: <FaUserDoctor /> },
-    { text: "Receptions", icon: <FaUserTie /> },
-    { text: "Settings", icon: <SettingsIcon /> },
+    { text: "Dashboard", icon: <HomeIcon />, path: "/dashboard" },
+    { text: "Patients", icon: <FaUsers />, path: "/patients" },
+    { text: "Users", icon: <FaUser />, path: "/user" },
   ];
 
   const drawer = (
@@ -47,10 +45,12 @@ export default function MedTechDrawer(props: Props) {
       <Toolbar />
       <Divider />
       <List>
-        {menuItems.map(({ text, icon }) => (
+        {menuItems.map(({ text, icon, path }) => (
           <ListItem key={text} disablePadding>
-            <ListItemButton>
-              <ListItemIcon>{icon}</ListItemIcon>
+            <ListItemButton onClick={() => navigate(path)}>
+              {" "}
+              {/* navigatsiya qo'shildi */}
+              <ListItemIcon sx={{ color: "#769382" }}>{icon}</ListItemIcon>
               <ListItemText primary={text} />
             </ListItemButton>
           </ListItem>
@@ -65,7 +65,6 @@ export default function MedTechDrawer(props: Props) {
   return (
     <Box sx={{ display: "flex" }}>
       <CssBaseline />
-
       <AppBar
         position="fixed"
         sx={{
@@ -86,9 +85,12 @@ export default function MedTechDrawer(props: Props) {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div">
+
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             MedTech Klinika
           </Typography>
+
+          <Profile />
         </Toolbar>
       </AppBar>
 
@@ -146,7 +148,7 @@ export default function MedTechDrawer(props: Props) {
           width: drawerOpen ? `calc(100% - ${drawerWidth}px)` : "100%",
           transition: "width 0.3s, margin-left 0.3s",
         }}
-      ></Box>
+      />
     </Box>
   );
 }
