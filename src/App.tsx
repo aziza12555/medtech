@@ -104,7 +104,7 @@ function App() {
           }
         />
         <Route
-          path="/patient/:id"
+          path="/patients/:id"
           element={
             <RoleRoute roles={["admin"]}>
               <PatientDetail />
@@ -112,7 +112,7 @@ function App() {
           }
         />
         <Route
-          path="/patient/create"
+          path="/patients/create"
           element={
             <RoleRoute roles={["admin"]}>
               <CreatePatient />
