@@ -12,6 +12,10 @@ import {
   CircularProgress,
   Pagination,
   Stack,
+  MenuItem,
+  Select,
+  InputLabel,
+  FormControl,
 } from "@mui/material";
 import { api } from "../../service/api";
 import { useNavigate } from "react-router-dom";
@@ -31,7 +35,13 @@ export default function PatientManagement() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const limit = 10;
+
   const [q, setQ] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const [gender, setGender] = useState<string | "">("");
+  const [sort, setSort] = useState<"newest" | "oldest">("newest");
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -39,30 +49,46 @@ export default function PatientManagement() {
   const fetchPatients = async (params: {
     offset: number;
     limit: number;
-    q: string;
+    q?: string;
+    gender?: string;
+    sort?: "newest" | "oldest";
   }) => {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await api.get("/patients", {
-        params: { ...params },
-      });
+      console.log("Fetching patients with params:", params);
+      const { data } = await api.get("/patients", { params });
       setPatients(data.items);
       setTotal(data.total);
     } catch (error: any) {
       console.error(error);
-      setError(error.message || "Xatolik yuz berdi");
+      if (
+        error.response &&
+        error.response.data &&
+        error.response.data.message
+      ) {
+        setError(error.response.data.message);
+      } else {
+        setError(error.message || "Xatolik yuz berdi");
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchPatients({ offset: (page - 1) * limit, limit, q });
-  }, [page, limit, q]);
+    fetchPatients({
+      offset: (page - 1) * limit,
+      limit,
+      q: searchTerm || undefined,
+      gender: gender || undefined,
+      sort,
+    });
+  }, [page, limit, searchTerm, gender, sort]);
 
   const handleSearch = () => {
     setPage(1);
+    setSearchTerm(q.trim());
   };
 
   const handlePageChange = (_: React.ChangeEvent<unknown>, value: number) => {
@@ -87,20 +113,61 @@ export default function PatientManagement() {
         </Button>
       </Stack>
 
-      <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={2} mb={2}>
         <TextField
+          type="search"
           label="Qidiruv (ism, telefon, email)"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           fullWidth
           onKeyDown={(e) => {
-            if (e.key === "Enter") handleSearch();
+            if (e.key === "Enter") {
+              handleSearch();
+            }
           }}
         />
-        <Button variant="contained" onClick={handleSearch}>
+        <FormControl sx={{ minWidth: 120 }}>
+          <InputLabel id="gender-label">Jinsi</InputLabel>
+          <Select
+            labelId="gender-label"
+            value={gender}
+            label="Jinsi"
+            onChange={(e) => {
+              setPage(1);
+              setGender(e.target.value);
+            }}
+          >
+            <MenuItem value="">Barchasi</MenuItem>
+            <MenuItem value="male">Erkak</MenuItem>
+            <MenuItem value="female">Ayol</MenuItem>
+            <MenuItem value="other">Boshqa</MenuItem>
+          </Select>
+        </FormControl>
+
+        <FormControl sx={{ minWidth: 140 }}>
+          <InputLabel id="sort-label">Saralash</InputLabel>
+          <Select
+            labelId="sort-label"
+            value={sort}
+            label="Saralash"
+            onChange={(e) => {
+              setPage(1);
+              setSort(e.target.value as "newest" | "oldest");
+            }}
+          >
+            <MenuItem value="newest">Eng yangi</MenuItem>
+            <MenuItem value="oldest">Eng eski</MenuItem>
+          </Select>
+        </FormControl>
+
+        <Button
+          variant="contained"
+          onClick={handleSearch}
+          sx={{ alignSelf: "center" }}
+        >
           Qidirish
         </Button>
-      </Box>
+      </Stack>
 
       {loading ? (
         <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>

@@ -43,7 +43,6 @@ export default function UserManagementTable() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Filterlar uchun state'lar
   const [searchText, setSearchText] = useState("");
   const [roleFilter, setRoleFilter] = useState<string | "">("");
   const [statusFilter, setStatusFilter] = useState<string | "">("");
@@ -53,7 +52,6 @@ export default function UserManagementTable() {
 
   const navigate = useNavigate();
 
-  // Foydalanuvchilarni olish
   const fetchUsers = async () => {
     setLoading(true);
     setError(null);
@@ -83,7 +81,6 @@ export default function UserManagementTable() {
     fetchUsers();
   }, []);
 
-  // Filterlash
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
       user.email.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -99,7 +96,6 @@ export default function UserManagementTable() {
     return matchesSearch && matchesRole && matchesStatus;
   });
 
-  // Sahifa va satrlar sonini boshqarish
   const handleChangePage = (_: unknown, newPage: number) => {
     setPage(newPage);
   };
@@ -111,7 +107,6 @@ export default function UserManagementTable() {
     setPage(0);
   };
 
-  // Rang berish funksiyalari
   const roleColor = (role: User["role"]) => {
     switch (role) {
       case "admin":
@@ -139,7 +134,6 @@ export default function UserManagementTable() {
         />
       </Typography>
 
-      {/* Filter qismi */}
       <Box
         sx={{
           display: "flex",
@@ -150,7 +144,6 @@ export default function UserManagementTable() {
           justifyContent: "space-between",
         }}
       >
-        {/* Qidiruv */}
         <TextField
           size="small"
           placeholder="Email yoki ism bo'yicha qidirish..."
