@@ -1,4 +1,3 @@
-import React from "react";
 import {
   Box,
   List,
@@ -13,12 +12,14 @@ import HomeIcon from "@mui/icons-material/Home";
 import { FaUser, FaUsers } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useSidebarStore } from "../store/sidebar.store";
+import { MdEvent } from "react-icons/md";
 
 const drawerWidth = 240;
 
 const menuItems = [
   { text: "Dashboard", icon: <HomeIcon />, path: "/dashboard" },
   { text: "Patients", icon: <FaUsers />, path: "/patients" },
+  { text: "Appointment", icon: <MdEvent />, path: "/create-appointment" },
   { text: "Users", icon: <FaUser />, path: "/user" },
 ];
 

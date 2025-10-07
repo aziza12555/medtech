@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -15,6 +15,13 @@ import { api } from "../../service/api";
 
 type Gender = "male" | "female" | "child" | "";
 
+interface Doctor {
+  id: string;
+  firstName: string;
+  lastName: string;
+  specialization?: string;
+}
+
 export default function CreatePatientForm() {
   const [email, setEmail] = useState("");
   const [firstName, setFirst] = useState("");
@@ -22,16 +29,43 @@ export default function CreatePatientForm() {
   const [gender, setGender] = useState<Gender>("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [selectedDoctor, setSelectedDoctor] = useState("");
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [doctorsLoading, setDoctorsLoading] = useState(true);
 
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
+  // Doctorlarni yuklash
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      try {
+        const { data } = await api.get("/doctors");
+        setDoctors(data);
+      } catch (error) {
+        console.error("Doctorlarni yuklashda xatolik:", error);
+        setErr("Doctorlarni yuklashda xatolik yuz berdi");
+      } finally {
+        setDoctorsLoading(false);
+      }
+    };
+
+    fetchDoctors();
+  }, []);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMsg(null);
     setErr(null);
     setLoading(true);
+
+    // Doctor tanlanganligini tekshirish
+    if (!selectedDoctor) {
+      setErr("Iltimos, doctorni tanlang");
+      setLoading(false);
+      return;
+    }
 
     try {
       const { data } = await api.post("/patients", {
@@ -41,6 +75,7 @@ export default function CreatePatientForm() {
         gender,
         phone,
         notes,
+        doctorId: selectedDoctor, // Doctor ID ni yuborish
       });
 
       setMsg(
@@ -53,6 +88,7 @@ export default function CreatePatientForm() {
       setGender("");
       setPhone("");
       setNotes("");
+      setSelectedDoctor("");
     } catch (error: any) {
       setErr(error?.response?.data?.message || "Qo'shishda xatolik yuz berdi");
     } finally {
@@ -128,6 +164,31 @@ export default function CreatePatientForm() {
               <MenuItem value="child">Bola</MenuItem>
             </TextField>
 
+            {/* Doctor tanlash qismi */}
+            <TextField
+              select
+              label="Doctor"
+              fullWidth
+              required
+              margin="normal"
+              value={selectedDoctor}
+              onChange={(e) => setSelectedDoctor(e.target.value)}
+              disabled={doctorsLoading}
+            >
+              {doctorsLoading ? (
+                <MenuItem value="">
+                  <em>Doctorlar yuklanmoqda...</em>
+                </MenuItem>
+              ) : (
+                doctors.map((doctor) => (
+                  <MenuItem key={doctor.id} value={doctor.id}>
+                    {doctor.firstName} {doctor.lastName}
+                    {doctor.specialization && ` - ${doctor.specialization}`}
+                  </MenuItem>
+                ))
+              )}
+            </TextField>
+
             <TextField
               label="Izoh"
               fullWidth
@@ -143,7 +204,7 @@ export default function CreatePatientForm() {
                 type="submit"
                 variant="contained"
                 fullWidth
-                disabled={loading}
+                disabled={loading || doctorsLoading}
                 sx={{ bgcolor: "#769382", "&:hover": { bgcolor: "#5a6a59" } }}
               >
                 {loading ? "Qo'shilmoqda..." : "Qo'shish"}

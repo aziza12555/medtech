@@ -1,24 +1,39 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box,
-  Typography,
-  TextField,
   Button,
+  Chip,
+  IconButton,
+  InputAdornment,
+  Paper,
   Table,
-  TableHead,
-  TableRow,
-  TableCell,
   TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TablePagination,
+  TableRow,
+  TextField,
+  Typography,
   CircularProgress,
-  Pagination,
-  Stack,
-  MenuItem,
   Select,
-  InputLabel,
+  MenuItem,
   FormControl,
+  InputLabel,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Alert,
 } from "@mui/material";
-import { api } from "../../service/api";
+import SearchIcon from "@mui/icons-material/Search";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import AddIcon from "@mui/icons-material/Add";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useNavigate } from "react-router-dom";
+import { api } from "../../service/api";
 
 type Patient = {
   id: string;
@@ -27,209 +42,586 @@ type Patient = {
   gender?: string;
   phone?: string;
   email?: string;
+  status?: string;
+  dateOfBirth?: string;
   createdAt: string;
 };
 
 export default function PatientManagement() {
   const [patients, setPatients] = useState<Patient[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const limit = 10;
-
-  const [q, setQ] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-
-  const [gender, setGender] = useState<string | "">("");
-  const [sort, setSort] = useState<"newest" | "oldest">("newest");
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [searchText, setSearchText] = useState("");
+  const [genderFilter, setGenderFilter] = useState<string | "">("");
+  const [statusFilter, setStatusFilter] = useState<string | "">("");
+
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  const [deleteDialog, setDeleteDialog] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
   const navigate = useNavigate();
 
-  const fetchPatients = async (params: {
-    offset: number;
-    limit: number;
-    q?: string;
-    gender?: string;
-    sort?: "newest" | "oldest";
-  }) => {
+  const fetchPatients = async () => {
     setLoading(true);
     setError(null);
     try {
-      console.log("Fetching patients with params:", params);
-      const { data } = await api.get("/patients", { params });
-      setPatients(data.items);
-      setTotal(data.total);
-    } catch (error: any) {
-      console.error(error);
-      if (
-        error.response &&
-        error.response.data &&
-        error.response.data.message
-      ) {
-        setError(error.response.data.message);
+      console.log("🔍 Patient API so'rov boshlandi...");
+
+      const response = await api.get("/patients");
+      console.log("✅ Patient API javobi:", response);
+      console.log("📊 Patient Response data:", response.data);
+
+      if (response.data && Array.isArray(response.data)) {
+        console.log("📦 To'g'ri format: Array of patients");
+        const transformedPatients = response.data.map((patient: any) => ({
+          id: patient.id,
+          firstName: patient.first_name || patient.firstName || "",
+          lastName: patient.last_name || patient.lastName || "",
+          gender: patient.gender,
+          phone: patient.phone,
+          email: patient.email,
+          status: patient.status,
+          dateOfBirth: patient.dateOfBirth || patient.date_of_birth,
+          createdAt: patient.createdAt,
+        }));
+
+        console.log("🔄 Transform qilingan patientlar:", transformedPatients);
+        setPatients(transformedPatients);
+      } else if (response.data && Array.isArray(response.data.items)) {
+        console.log("📦 Nested format: response.data.items");
+        const transformedPatients = response.data.items.map((patient: any) => ({
+          id: patient.id,
+          firstName: patient.first_name || patient.firstName || "",
+          lastName: patient.last_name || patient.lastName || "",
+          gender: patient.gender,
+          phone: patient.phone,
+          email: patient.email,
+          status: patient.status,
+          dateOfBirth: patient.dateOfBirth || patient.date_of_birth,
+          createdAt: patient.createdAt,
+        }));
+
+        console.log("🔄 Transform qilingan patientlar:", transformedPatients);
+        setPatients(transformedPatients);
+      } else if (response.data && Array.isArray(response.data.patients)) {
+        console.log("📦 Nested format: response.data.patients");
+        const transformedPatients = response.data.patients.map(
+          (patient: any) => ({
+            id: patient.id,
+            firstName: patient.first_name || patient.firstName || "",
+            lastName: patient.last_name || patient.lastName || "",
+            gender: patient.gender,
+            phone: patient.phone,
+            email: patient.email,
+            status: patient.status,
+            dateOfBirth: patient.dateOfBirth || patient.date_of_birth,
+            createdAt: patient.createdAt,
+          })
+        );
+
+        setPatients(transformedPatients);
       } else {
-        setError(error.message || "Xatolik yuz berdi");
+        console.log("❌ Noma'lum format:", response.data);
+        throw new Error("Noma'lum formatdagi bemorlar ma'lumotlari");
       }
+    } catch (err: any) {
+      console.error("❌ Xatolik:", err);
+      console.error("❌ Xatolik ma'lumoti:", err.response?.data);
+      console.error("❌ Xatolik status:", err.response?.status);
+
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Bemorlarni olishda xatolik yuz berdi"
+      );
+      setPatients([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchPatients({
-      offset: (page - 1) * limit,
-      limit,
-      q: searchTerm || undefined,
-      gender: gender || undefined,
-      sort,
-    });
-  }, [page, limit, searchTerm, gender, sort]);
+    fetchPatients();
+  }, []);
 
-  const handleSearch = () => {
-    setPage(1);
-    setSearchTerm(q.trim());
+  const handleView = (patient: Patient) => {
+    navigate(`/admin/patients/${patient.id}`);
   };
 
-  const handlePageChange = (_: React.ChangeEvent<unknown>, value: number) => {
-    setPage(value);
+  const handleEdit = (patient: Patient) => {
+    navigate(`/admin/patients/${patient.id}/edit`);
+  };
+
+  const handleDeleteClick = (patient: Patient) => {
+    setSelectedPatient(patient);
+    setDeleteDialog(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedPatient) return;
+
+    setDeleteLoading(true);
+    try {
+      await api.delete(`/patients/${selectedPatient.id}`);
+      setDeleteDialog(false);
+      setSelectedPatient(null);
+      fetchPatients();
+    } catch (error: any) {
+      console.error("O'chirishda xatolik:", error);
+      setError(
+        error.response?.data?.message || "Bemorni o'chirishda xatolik yuz berdi"
+      );
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialog(false);
+    setSelectedPatient(null);
+  };
+
+  const filteredPatients = patients.filter((patient) => {
+    const matchesSearch =
+      patient.firstName.toLowerCase().includes(searchText.toLowerCase()) ||
+      patient.lastName.toLowerCase().includes(searchText.toLowerCase()) ||
+      patient.phone?.toLowerCase().includes(searchText.toLowerCase()) ||
+      patient.email?.toLowerCase().includes(searchText.toLowerCase());
+
+    const matchesGender = genderFilter ? patient.gender === genderFilter : true;
+    const matchesStatus = statusFilter ? patient.status === statusFilter : true;
+
+    return matchesSearch && matchesGender && matchesStatus;
+  });
+
+  const handleChangePage = (_: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const genderColor = (gender: string) => {
+    switch (gender?.toLowerCase()) {
+      case "male":
+        return "primary";
+      case "female":
+        return "secondary";
+      default:
+        return "default";
+    }
+  };
+
+  const statusColor = (status: string) => {
+    return status === "active" ? "success" : "warning";
+  };
+
+  const formatGender = (gender: string) => {
+    switch (gender?.toLowerCase()) {
+      case "male":
+        return "Erkak";
+      case "female":
+        return "Ayol";
+      default:
+        return "Noma'lum";
+    }
+  };
+
+  const formatStatus = (status: string) => {
+    return status === "active" ? "Faol" : "Nofaol";
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        mb={3}
-      >
-        <Typography variant="h4">Bemorlar ro'yxati</Typography>
-        <Button
-          variant="contained"
-          onClick={() => navigate("/patients/create")}
-          sx={{ bgcolor: "#769382", "&:hover": { bgcolor: "#5a7356" } }}
-        >
-          Bemor qo'shish
-        </Button>
-      </Stack>
-
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={2} mb={2}>
-        <TextField
-          type="search"
-          label="Qidiruv (ism, telefon, email)"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          fullWidth
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              handleSearch();
-            }
+    <Box sx={{ padding: 3 }}>
+      <Typography variant="h4" gutterBottom sx={{ mb: 3, color: "#769382" }}>
+        Bemorlar Boshqaruvi
+        <Chip
+          label={`Jami: ${patients.length}`}
+          sx={{
+            ml: 2,
+            fontWeight: "bold",
+            backgroundColor: "#769382",
+            color: "white",
           }}
         />
-        <FormControl sx={{ minWidth: 120 }}>
-          <InputLabel id="gender-label">Jinsi</InputLabel>
-          <Select
-            labelId="gender-label"
-            value={gender}
-            label="Jinsi"
+      </Typography>
+
+      {/* Filter qismi */}
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 2,
+          mb: 3,
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, flex: 1 }}>
+          <TextField
+            size="small"
+            placeholder="Ism, familiya, telefon yoki email bo'yicha qidirish..."
+            value={searchText}
             onChange={(e) => {
-              setPage(1);
-              setGender(e.target.value);
+              setSearchText(e.target.value);
+              setPage(0);
+            }}
+            sx={{ width: { xs: "100%", sm: "350px" } }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ color: "#769382" }} />
+                </InputAdornment>
+              ),
+            }}
+          />
+
+          <FormControl sx={{ minWidth: 140 }} size="small">
+            <InputLabel id="gender-filter-label" sx={{ color: "#769382" }}>
+              Jinsi
+            </InputLabel>
+            <Select
+              labelId="gender-filter-label"
+              value={genderFilter}
+              label="Jinsi"
+              onChange={(e) => {
+                setGenderFilter(e.target.value);
+                setPage(0);
+              }}
+              sx={{
+                "& .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "#769382",
+                },
+                "&:hover .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "#5a7a6a",
+                },
+                "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "#769382",
+                },
+              }}
+            >
+              <MenuItem value="">Hammasi</MenuItem>
+              <MenuItem value="male">Erkak</MenuItem>
+              <MenuItem value="female">Ayol</MenuItem>
+            </Select>
+          </FormControl>
+
+          <FormControl sx={{ minWidth: 140 }} size="small">
+            <InputLabel id="status-filter-label" sx={{ color: "#769382" }}>
+              Status
+            </InputLabel>
+            <Select
+              labelId="status-filter-label"
+              value={statusFilter}
+              label="Status"
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(0);
+              }}
+              sx={{
+                "& .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "#769382",
+                },
+                "&:hover .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "#5a7a6a",
+                },
+                "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "#769382",
+                },
+              }}
+            >
+              <MenuItem value="">Hammasi</MenuItem>
+              <MenuItem value="active">Faol</MenuItem>
+              <MenuItem value="inactive">Nofaol</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
+
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={fetchPatients}
+            disabled={loading}
+            sx={{
+              borderColor: "#769382",
+              color: "#769382",
+              "&:hover": {
+                borderColor: "#5a7a6a",
+                backgroundColor: "rgba(118, 147, 130, 0.04)",
+              },
             }}
           >
-            <MenuItem value="">Barchasi</MenuItem>
-            <MenuItem value="male">Erkak</MenuItem>
-            <MenuItem value="female">Ayol</MenuItem>
-            <MenuItem value="other">Boshqa</MenuItem>
-          </Select>
-        </FormControl>
+            Yangilash
+          </Button>
 
-        <FormControl sx={{ minWidth: 140 }}>
-          <InputLabel id="sort-label">Saralash</InputLabel>
-          <Select
-            labelId="sort-label"
-            value={sort}
-            label="Saralash"
-            onChange={(e) => {
-              setPage(1);
-              setSort(e.target.value as "newest" | "oldest");
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => navigate("/admin/patients/create")}
+            sx={{
+              backgroundColor: "#769382",
+              "&:hover": {
+                backgroundColor: "#5a7a6a",
+              },
             }}
           >
-            <MenuItem value="newest">Eng yangi</MenuItem>
-            <MenuItem value="oldest">Eng eski</MenuItem>
-          </Select>
-        </FormControl>
+            Yangi Bemor
+          </Button>
+        </Box>
+      </Box>
 
-        <Button
-          variant="contained"
-          onClick={handleSearch}
-          sx={{ alignSelf: "center" }}
-        >
-          Qidirish
-        </Button>
-      </Stack>
-
+      {/* Yuklash/Error holatlari */}
       {loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
-          <CircularProgress />
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 5 }}>
+          <CircularProgress sx={{ color: "#769382" }} />
+        </Box>
+      ) : error ? (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          {error}
+        </Alert>
+      ) : filteredPatients.length === 0 ? (
+        <Box sx={{ textAlign: "center", mt: 5 }}>
+          <Typography variant="h6" color="text.secondary" gutterBottom>
+            Bemor topilmadi
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Qidiruv shartlariga mos bemor mavjud emas
+          </Typography>
         </Box>
       ) : (
         <>
-          {error && (
-            <Typography color="error" align="center" mt={2}>
-              {error}
-            </Typography>
-          )}
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Ism</TableCell>
-                <TableCell>Familiya</TableCell>
-                <TableCell>Jinsi</TableCell>
-                <TableCell>Telefon</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Yaratilgan sanasi</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {patients.length ? (
-                patients.map((patient) => (
-                  <TableRow
-                    key={patient.id}
-                    hover
-                    sx={{ cursor: "pointer" }}
-                    onClick={() => navigate(`/patients/${patient.id}`)}
+          <TableContainer component={Paper} elevation={2}>
+            <Table>
+              <TableHead>
+                <TableRow sx={{ backgroundColor: "#f8f9fa" }}>
+                  <TableCell sx={{ fontWeight: "bold", color: "#769382" }}>
+                    ID
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", color: "#769382" }}>
+                    Ism
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", color: "#769382" }}>
+                    Familiya
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", color: "#769382" }}>
+                    Telefon
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", color: "#769382" }}>
+                    Email
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", color: "#769382" }}>
+                    Jinsi
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", color: "#769382" }}>
+                    Status
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", color: "#769382" }}>
+                    Yaratilgan sana
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    sx={{ fontWeight: "bold", color: "#769382" }}
                   >
-                    <TableCell>{patient.firstName}</TableCell>
-                    <TableCell>{patient.lastName}</TableCell>
-                    <TableCell>{patient.gender || "-"}</TableCell>
-                    <TableCell>{patient.phone || "-"}</TableCell>
-                    <TableCell>{patient.email || "-"}</TableCell>
-                    <TableCell>
-                      {new Date(patient.createdAt).toLocaleDateString()}
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={6} align="center">
-                    Bemor topilmadi
+                    Amallar
                   </TableCell>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHead>
+              <TableBody>
+                {filteredPatients
+                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                  .map((patient) => (
+                    <TableRow
+                      key={patient.id}
+                      hover
+                      sx={{
+                        "&:hover": {
+                          backgroundColor: "rgba(118, 147, 130, 0.08)",
+                        },
+                      }}
+                    >
+                      <TableCell
+                        sx={{ fontFamily: "monospace", fontSize: "0.8rem" }}
+                      >
+                        {patient.id.slice(0, 8)}...
+                      </TableCell>
+                      <TableCell>{patient.firstName}</TableCell>
+                      <TableCell>{patient.lastName}</TableCell>
+                      <TableCell>{patient.phone || "-"}</TableCell>
+                      <TableCell>{patient.email || "-"}</TableCell>
+                      <TableCell>
+                        {patient.gender ? (
+                          <Chip
+                            label={formatGender(patient.gender)}
+                            color={genderColor(patient.gender)}
+                            size="small"
+                            sx={{
+                              textTransform: "capitalize",
+                              fontWeight: "bold",
+                            }}
+                          />
+                        ) : (
+                          "-"
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {patient.status ? (
+                          <Chip
+                            label={formatStatus(patient.status)}
+                            color={statusColor(patient.status)}
+                            size="small"
+                            sx={{
+                              textTransform: "capitalize",
+                              fontWeight: "bold",
+                            }}
+                          />
+                        ) : (
+                          "-"
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {new Date(patient.createdAt).toLocaleDateString(
+                          "uz-UZ"
+                        )}
+                      </TableCell>
+                      <TableCell align="center">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleView(patient)}
+                          title="Ko'rish"
+                          sx={{
+                            color: "#769382",
+                            "&:hover": {
+                              backgroundColor: "rgba(118, 147, 130, 0.1)",
+                            },
+                          }}
+                        >
+                          <VisibilityIcon />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEdit(patient)}
+                          title="Tahrirlash"
+                          sx={{
+                            color: "#1976d2",
+                            "&:hover": {
+                              backgroundColor: "rgba(25, 118, 210, 0.1)",
+                            },
+                          }}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                        <IconButton
+                          color="error"
+                          size="small"
+                          onClick={() => handleDeleteClick(patient)}
+                          title="O'chirish"
+                          sx={{
+                            "&:hover": {
+                              backgroundColor: "rgba(211, 47, 47, 0.1)",
+                            },
+                          }}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
 
-          <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-            <Pagination
-              count={Math.ceil(total / limit)}
-              page={page}
-              onChange={handlePageChange}
-              color="primary"
-            />
-          </Box>
+          <TablePagination
+            rowsPerPageOptions={[5, 10, 25]}
+            component="div"
+            count={filteredPatients.length}
+            rowsPerPage={rowsPerPage}
+            page={page}
+            onPageChange={handleChangePage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+            sx={{
+              mt: 2,
+              "& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows":
+                {
+                  color: "#769382",
+                },
+              "& .MuiTablePagination-actions button": {
+                color: "#769382",
+              },
+            }}
+            labelRowsPerPage="Sahifadagi qatorlar:"
+            labelDisplayedRows={({ from, to, count }) =>
+              `${from}-${to} ning ${count !== -1 ? count : `more than ${to}`}`
+            }
+          />
         </>
       )}
+
+      {/* O'chirish dialogi */}
+      <Dialog
+        open={deleteDialog}
+        onClose={handleDeleteCancel}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle
+          sx={{ color: "#769382", borderBottom: "1px solid #e0e0e0" }}
+        >
+          Bemorni o'chirish
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Bu amalni ortga qaytarib bo'lmaydi!
+          </Alert>
+          <Typography>Quyidagi bemorni o'chirishni istaysizmi?</Typography>
+          {selectedPatient && (
+            <Box sx={{ mt: 2, p: 2, bgcolor: "grey.50", borderRadius: 1 }}>
+              <Typography variant="subtitle1">
+                {selectedPatient.firstName} {selectedPatient.lastName}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Telefon: {selectedPatient.phone || "-"}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Email: {selectedPatient.email || "-"}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Jinsi: {formatGender(selectedPatient.gender || "")}
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={handleDeleteCancel}
+            disabled={deleteLoading}
+            sx={{ color: "#769382" }}
+          >
+            Bekor qilish
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            variant="contained"
+            disabled={deleteLoading}
+            sx={{
+              backgroundColor: "#d32f2f",
+              "&:hover": {
+                backgroundColor: "#c62828",
+              },
+            }}
+          >
+            {deleteLoading ? "O'chirilmoqda..." : "O'chirish"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

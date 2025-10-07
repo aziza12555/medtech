@@ -1,3 +1,4 @@
+// user-detail.tsx
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -5,17 +6,19 @@ import {
   Typography,
   Button,
   CircularProgress,
-  TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
   Snackbar,
   Alert,
+  Card,
+  CardContent,
+  Chip,
+  Grid,
+  Breadcrumbs,
+  Link,
 } from "@mui/material";
+import { Edit, Delete, ArrowBack, Home } from "@mui/icons-material";
 import { api } from "../../service/api";
 
-type User = {
+interface User {
   id: string;
   email: string;
   firstName: string;
@@ -23,35 +26,21 @@ type User = {
   role: "admin" | "doctor" | "reception";
   status: "Faol" | "Nofaol";
   createdAt: string;
-};
+  updatedAt?: string;
+}
 
 export default function UserDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
-
-  // Form uchun state
-  const [editMode, setEditMode] = useState(false);
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    role: "" as User["role"],
-    status: "" as User["status"],
-  });
-
-  // Snackbar
-  const [snackbar, setSnackbar] = useState<{
-    open: boolean;
-    message: string;
-    severity: "success" | "error";
-  }>({
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
-    severity: "success",
+    severity: "success" as "success" | "error",
   });
-
-  const navigate = useNavigate();
 
   useEffect(() => {
     if (!id) return;
@@ -59,18 +48,34 @@ export default function UserDetail() {
     const fetchUser = async () => {
       setLoading(true);
       try {
-        const { data } = await api.get<User>(`/users/${id}`);
-        setUser(data);
-        // Formni to'ldirish
-        setFormData({
-          firstName: data.firstName,
-          lastName: data.lastName,
+        console.log("🔍 UserDetail: API so'rov boshlandi, ID:", id);
+
+        const { data } = await api.get(`/users/${id}`);
+        console.log("✅ UserDetail API javobi:", data);
+
+        // ✅ Backend formatini frontend formatiga o'tkazish
+        const userData: User = {
+          id: data.id,
           email: data.email,
+          firstName: data.first_name || data.firstName || "", // ✅ Ikkala formatni ham tekshiramiz
+          lastName: data.last_name || data.lastName || "", // ✅ Ikkala formatni ham tekshiramiz
           role: data.role,
-          status: data.status,
+          status: data.status === "active" ? "Faol" : "Nofaol", // ✅ Statusni o'zgartiramiz
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt,
+        };
+
+        console.log("🔄 Transform qilingan user:", userData);
+        setUser(userData);
+      } catch (error: any) {
+        console.error("❌ UserDetail xatolik:", error);
+        console.error("❌ Xatolik ma'lumoti:", error.response?.data);
+
+        setSnackbar({
+          open: true,
+          message: "Foydalanuvchi ma'lumotlarini yuklashda xatolik",
+          severity: "error",
         });
-      } catch (error) {
-        console.error(error);
       } finally {
         setLoading(false);
       }
@@ -79,68 +84,60 @@ export default function UserDetail() {
     fetchUser();
   }, [id]);
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleSelectChange = (
-    e: React.ChangeEvent<{ name?: string; value: unknown }>
-  ) => {
-    const name = e.target.name as string;
-    const value = e.target.value as string;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleSave = async () => {
+  const handleDelete = async () => {
     if (!user) return;
+    const confirm = window.confirm(
+      `"${user.firstName} ${user.lastName}" foydalanuvchisini o'chirishni istaysizmi?`
+    );
+    if (!confirm) return;
 
-    setLoading(true);
+    setDeleteLoading(true);
     try {
-      // Foydalanuvchini yangilash uchun PUT yoki PATCH so'rovi (serveringizga qarab)
-      await api.patch(`/users/${user.id}`, {
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        email: formData.email,
-        role: formData.role,
-        status: formData.status === "Faol" ? "active" : "inactive",
-      });
-
-      setUser({
-        ...user,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        role: formData.role,
-        status: formData.status,
-      });
-
-      setEditMode(false);
+      await api.delete(`/users/${user.id}`);
       setSnackbar({
         open: true,
-        message: "Ma'lumotlar muvaffaqiyatli yangilandi!",
+        message: "Foydalanuvchi muvaffaqiyatli o'chirildi!",
         severity: "success",
       });
-    } catch (error) {
+      setTimeout(() => navigate("/admin/user"), 1500);
+    } catch (error: any) {
+      console.error("O'chirish xatosi:", error);
       setSnackbar({
         open: true,
-        message: "Yangilashda xatolik yuz berdi.",
+        message:
+          error.response?.data?.message || "O'chirishda xatolik yuz berdi",
         severity: "error",
       });
     } finally {
-      setLoading(false);
+      setDeleteLoading(false);
     }
   };
 
-  if (loading)
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case "admin":
+        return "error";
+      case "doctor":
+        return "primary";
+      case "reception":
+        return "secondary";
+      default:
+        return "default";
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    return status === "Faol" ? "success" : "error";
+  };
+
+  // ✅ Debug uchun ma'lumotlarni tekshirish
+  useEffect(() => {
+    if (user) {
+      console.log("User ma'lumotlari:", user);
+    }
+  }, [user]);
+
+  if (loading && !user)
     return (
       <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
         <CircularProgress />
@@ -153,123 +150,252 @@ export default function UserDetail() {
         <Typography variant="h6">Foydalanuvchi topilmadi</Typography>
         <Button
           variant="contained"
-          onClick={() => navigate("/user")}
+          startIcon={<ArrowBack />}
+          onClick={() => navigate("/admin/user")}
           sx={{ mt: 2 }}
         >
-          Orqaga
+          Foydalanuvchilar ro'yxatiga qaytish
         </Button>
       </Box>
     );
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        {editMode
-          ? "Foydalanuvchini tahrirlash"
-          : `${user.firstName} ${user.lastName}`}
-      </Typography>
+    <Box sx={{ p: 3, maxWidth: 1200, margin: "0 auto" }}>
+      {/* Breadcrumb */}
+      <Breadcrumbs sx={{ mb: 3 }}>
+        <Link
+          underline="hover"
+          color="inherit"
+          onClick={() => navigate("/admin/dashboard")}
+          sx={{ cursor: "pointer", display: "flex", alignItems: "center" }}
+        >
+          <Home sx={{ mr: 0.5 }} fontSize="inherit" />
+          Dashboard
+        </Link>
+        <Link
+          underline="hover"
+          color="inherit"
+          onClick={() => navigate("/admin/user")}
+          sx={{ cursor: "pointer" }}
+        >
+          Foydalanuvchilar
+        </Link>
+        <Typography color="text.primary">
+          {user.firstName} {user.lastName} {/* ✅ To'g'ri property nomlari */}
+        </Typography>
+      </Breadcrumbs>
 
-      {editMode ? (
-        <>
-          <TextField
-            label="Ism"
-            name="firstName"
-            value={formData.firstName}
-            onChange={handleInputChange}
-            fullWidth
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            label="Familiya"
-            name="lastName"
-            value={formData.lastName}
-            onChange={handleInputChange}
-            fullWidth
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            label="Email"
-            name="email"
-            value={formData.email}
-            onChange={handleInputChange}
-            fullWidth
-            sx={{ mb: 2 }}
-          />
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel id="role-label">Rol</InputLabel>
-            <Select
-              labelId="role-label"
-              name="role"
-              value={formData.role}
-              label="Rol"
-              onChange={handleSelectChange}
-            >
-              <MenuItem value="admin">Admin</MenuItem>
-              <MenuItem value="doctor">Doctor</MenuItem>
-              <MenuItem value="reception">Reception</MenuItem>
-            </Select>
-          </FormControl>
+      {/* Sarlavha va tugmalar */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          mb: 3,
+          flexDirection: { xs: "column", md: "row" },
+          gap: 2,
+        }}
+      >
+        <Typography variant="h4" gutterBottom>
+          Foydalanuvchi Ma'lumotlari
+        </Typography>
 
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel id="status-label">Status</InputLabel>
-            <Select
-              labelId="status-label"
-              name="status"
-              value={formData.status}
-              label="Status"
-              onChange={handleSelectChange}
-            >
-              <MenuItem value="Faol">Faol</MenuItem>
-              <MenuItem value="Nofaol">Nofaol</MenuItem>
-            </Select>
-          </FormControl>
-
-          <Box sx={{ display: "flex", gap: 2 }}>
-            <Button variant="contained" onClick={handleSave} disabled={loading}>
-              Saqlash
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={() => setEditMode(false)}
-              disabled={loading}
-            >
-              Bekor qilish
-            </Button>
-          </Box>
-        </>
-      ) : (
-        <>
-          <Typography>
-            <strong>Email:</strong> {user.email}
-          </Typography>
-          <Typography>
-            <strong>Rol:</strong> {user.role}
-          </Typography>
-          <Typography>
-            <strong>Status:</strong> {user.status}
-          </Typography>
-          <Typography>
-            <strong>Yaratilgan sanasi:</strong>{" "}
-            {new Date(user.createdAt).toLocaleDateString()}
-          </Typography>
-
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
           <Button
             variant="outlined"
-            sx={{ mt: 3 }}
-            onClick={() => setEditMode(true)}
+            startIcon={<Edit />}
+            onClick={() => navigate(`/admin/user/${user.id}/edit`)}
+            size="small"
           >
             Tahrirlash
           </Button>
           <Button
+            variant="contained"
+            color="error"
+            startIcon={<Delete />}
+            onClick={handleDelete}
+            disabled={deleteLoading}
+            size="small"
+          >
+            {deleteLoading ? "O'chirilmoqda..." : "O'chirish"}
+          </Button>
+          <Button
             variant="outlined"
-            sx={{ mt: 3, ml: 2 }}
-            onClick={() => navigate("/user")}
+            startIcon={<ArrowBack />}
+            onClick={() => navigate("/admin/user")}
+            size="small"
           >
             Orqaga
           </Button>
-        </>
-      )}
+        </Box>
+      </Box>
 
+      <Card>
+        <CardContent sx={{ p: 4 }}>
+          <Grid container spacing={4}>
+            <Grid item xs={12} md={6}>
+              <Typography
+                variant="h6"
+                gutterBottom
+                color="primary"
+                sx={{ borderBottom: 1, borderColor: "divider", pb: 1 }}
+              >
+                👤 Asosiy Ma'lumotlar
+              </Typography>
+
+              <Box sx={{ mb: 3 }}>
+                <Typography
+                  variant="subtitle2"
+                  color="text.secondary"
+                  gutterBottom
+                >
+                  To'liq Ismi
+                </Typography>
+                <Typography
+                  variant="h6"
+                  gutterBottom
+                  sx={{ fontWeight: "bold" }}
+                >
+                  {user.firstName} {user.lastName}{" "}
+                  {/* ✅ To'g'ri property nomlari */}
+                </Typography>
+              </Box>
+
+              <Box sx={{ mb: 3 }}>
+                <Typography
+                  variant="subtitle2"
+                  color="text.secondary"
+                  gutterBottom
+                >
+                  Email Manzili
+                </Typography>
+                <Typography
+                  variant="body1"
+                  gutterBottom
+                  sx={{ fontFamily: "monospace" }}
+                >
+                  {user.email}
+                </Typography>
+              </Box>
+
+              <Box sx={{ mb: 3 }}>
+                <Typography
+                  variant="subtitle2"
+                  color="text.secondary"
+                  gutterBottom
+                >
+                  Rol
+                </Typography>
+                <Chip
+                  label={user.role.toUpperCase()}
+                  color={getRoleColor(user.role)}
+                  size="medium"
+                  sx={{ fontWeight: "bold", fontSize: "0.9rem" }}
+                />
+              </Box>
+
+              <Box sx={{ mb: 2 }}>
+                <Typography
+                  variant="subtitle2"
+                  color="text.secondary"
+                  gutterBottom
+                >
+                  Status
+                </Typography>
+                <Chip
+                  label={user.status}
+                  color={getStatusColor(user.status)}
+                  size="medium"
+                  sx={{ fontWeight: "bold", fontSize: "0.9rem" }}
+                />
+              </Box>
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <Typography
+                variant="h6"
+                gutterBottom
+                color="primary"
+                sx={{ borderBottom: 1, borderColor: "divider", pb: 1 }}
+              >
+                ⚙️ Tizim Ma'lumotlari
+              </Typography>
+
+              <Box sx={{ mb: 3 }}>
+                <Typography
+                  variant="subtitle2"
+                  color="text.secondary"
+                  gutterBottom
+                >
+                  Yaratilgan Sana
+                </Typography>
+                <Typography
+                  variant="body1"
+                  gutterBottom
+                  sx={{ fontWeight: "medium" }}
+                >
+                  {new Date(user.createdAt).toLocaleDateString("uz-UZ", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </Typography>
+              </Box>
+
+              {user.updatedAt && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography
+                    variant="subtitle2"
+                    color="text.secondary"
+                    gutterBottom
+                  >
+                    Yangilangan Sana
+                  </Typography>
+                  <Typography
+                    variant="body1"
+                    gutterBottom
+                    sx={{ fontWeight: "medium" }}
+                  >
+                    {new Date(user.updatedAt).toLocaleDateString("uz-UZ", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </Typography>
+                </Box>
+              )}
+
+              <Box sx={{ mb: 2 }}>
+                <Typography
+                  variant="subtitle2"
+                  color="text.secondary"
+                  gutterBottom
+                >
+                  Foydalanuvchi ID
+                </Typography>
+                <Typography
+                  variant="body2"
+                  fontFamily="monospace"
+                  sx={{
+                    bgcolor: "grey.100",
+                    p: 1,
+                    borderRadius: 1,
+                    wordBreak: "break-all",
+                  }}
+                >
+                  {user.id}
+                </Typography>
+              </Box>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+
+      {/* Xabarlar */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={4000}
