@@ -1,3 +1,4 @@
+// src/components/patients/PatientManagement.tsx - TO'G'RILANGAN
 import React, { useEffect, useState } from "react";
 import {
   Box,
@@ -32,20 +33,10 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import AddIcon from "@mui/icons-material/Add";
 import VisibilityIcon from "@mui/icons-material/Visibility";
-import { useNavigate } from "react-router-dom";
-import { api } from "../../service/api";
-
-type Patient = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  gender?: string;
-  phone?: string;
-  email?: string;
-  status?: string;
-  dateOfBirth?: string;
-  createdAt: string;
-};
+import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../../store/auth-store";
+import type { Patient } from "../../service/patients";
+import { usePatients } from "../../hooks/usePatient";
 
 export default function PatientManagement() {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -64,6 +55,25 @@ export default function PatientManagement() {
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
+  const { getPatients, deletePatient } = usePatients();
+
+  // Joriy rol va route ni aniqlash
+  const isAdmin = user?.role === "admin";
+  const isReception = user?.role === "reception";
+
+  // Base path ni aniqlash
+  const getBasePath = () => {
+    if (location.pathname.includes("/admin")) return "/admin";
+    if (location.pathname.includes("/reception")) return "/reception";
+    return "/admin";
+  };
+
+  const basePath = getBasePath();
+  const canCreatePatient = isAdmin || isReception;
+  const canEditPatient = isAdmin;
+  const canDeletePatient = isAdmin;
 
   const fetchPatients = async () => {
     setLoading(true);
@@ -71,63 +81,44 @@ export default function PatientManagement() {
     try {
       console.log("🔍 Patient API so'rov boshlandi...");
 
-      const response = await api.get("/patients");
+      const response = await getPatients();
       console.log("✅ Patient API javobi:", response);
-      console.log("📊 Patient Response data:", response.data);
+      console.log("📊 Response ma'lumotlari:", response);
 
-      if (response.data && Array.isArray(response.data)) {
-        console.log("📦 To'g'ri format: Array of patients");
-        const transformedPatients = response.data.map((patient: any) => ({
-          id: patient.id,
-          firstName: patient.first_name || patient.firstName || "",
-          lastName: patient.last_name || patient.lastName || "",
-          gender: patient.gender,
-          phone: patient.phone,
-          email: patient.email,
-          status: patient.status,
-          dateOfBirth: patient.dateOfBirth || patient.date_of_birth,
-          createdAt: patient.createdAt,
-        }));
+      // Response strukturasi tekshirish
+      if (!response) {
+        throw new Error("API dan javob qaytmadi");
+      }
 
-        console.log("🔄 Transform qilingan patientlar:", transformedPatients);
-        setPatients(transformedPatients);
-      } else if (response.data && Array.isArray(response.data.items)) {
-        console.log("📦 Nested format: response.data.items");
-        const transformedPatients = response.data.items.map((patient: any) => ({
-          id: patient.id,
-          firstName: patient.first_name || patient.firstName || "",
-          lastName: patient.last_name || patient.lastName || "",
-          gender: patient.gender,
-          phone: patient.phone,
-          email: patient.email,
-          status: patient.status,
-          dateOfBirth: patient.dateOfBirth || patient.date_of_birth,
-          createdAt: patient.createdAt,
-        }));
+      // Turli response formatlarini qo'llab-quvvatlash
+      let patientsData: Patient[] = [];
 
-        console.log("🔄 Transform qilingan patientlar:", transformedPatients);
-        setPatients(transformedPatients);
-      } else if (response.data && Array.isArray(response.data.patients)) {
-        console.log("📦 Nested format: response.data.patients");
-        const transformedPatients = response.data.patients.map(
-          (patient: any) => ({
-            id: patient.id,
-            firstName: patient.first_name || patient.firstName || "",
-            lastName: patient.last_name || patient.lastName || "",
-            gender: patient.gender,
-            phone: patient.phone,
-            email: patient.email,
-            status: patient.status,
-            dateOfBirth: patient.dateOfBirth || patient.date_of_birth,
-            createdAt: patient.createdAt,
-          })
-        );
-
-        setPatients(transformedPatients);
+      // Format 1: response = {total, offset, limit, items}
+      if (response && Array.isArray(response.items)) {
+        console.log("📦 Format 1: response.items = array");
+        patientsData = response.items;
+      }
+      // Format 2: response.data = {total, offset, limit, items}
+      else if (response.data && Array.isArray(response.data.items)) {
+        console.log("📦 Format 2: response.data.items = array");
+        patientsData = response.data.items;
+      }
+      // Format 3: response.data = array
+      else if (Array.isArray(response.data)) {
+        console.log("📦 Format 3: response.data = array");
+        patientsData = response.data;
+      }
+      // Format 4: response = array
+      else if (Array.isArray(response)) {
+        console.log("📦 Format 4: response = array");
+        patientsData = response;
       } else {
-        console.log("❌ Noma'lum format:", response.data);
+        console.log("❌ Noma'lum format:", response);
         throw new Error("Noma'lum formatdagi bemorlar ma'lumotlari");
       }
+
+      console.log("🔄 Qayta ishlangan patientlar:", patientsData);
+      setPatients(patientsData || []);
     } catch (err: any) {
       console.error("❌ Xatolik:", err);
       console.error("❌ Xatolik ma'lumoti:", err.response?.data);
@@ -149,16 +140,20 @@ export default function PatientManagement() {
   }, []);
 
   const handleView = (patient: Patient) => {
-    navigate(`/admin/patients/${patient.id}`);
+    navigate(`${basePath}/patients/${patient.id}`);
   };
 
   const handleEdit = (patient: Patient) => {
-    navigate(`/admin/patients/${patient.id}/edit`);
+    if (canEditPatient) {
+      navigate(`${basePath}/patients/${patient.id}/edit`);
+    }
   };
 
   const handleDeleteClick = (patient: Patient) => {
-    setSelectedPatient(patient);
-    setDeleteDialog(true);
+    if (canDeletePatient) {
+      setSelectedPatient(patient);
+      setDeleteDialog(true);
+    }
   };
 
   const handleDeleteConfirm = async () => {
@@ -166,7 +161,7 @@ export default function PatientManagement() {
 
     setDeleteLoading(true);
     try {
-      await api.delete(`/patients/${selectedPatient.id}`);
+      await deletePatient(selectedPatient.id);
       setDeleteDialog(false);
       setSelectedPatient(null);
       fetchPatients();
@@ -187,8 +182,8 @@ export default function PatientManagement() {
 
   const filteredPatients = patients.filter((patient) => {
     const matchesSearch =
-      patient.firstName.toLowerCase().includes(searchText.toLowerCase()) ||
-      patient.lastName.toLowerCase().includes(searchText.toLowerCase()) ||
+      patient.firstName?.toLowerCase().includes(searchText.toLowerCase()) ||
+      patient.lastName?.toLowerCase().includes(searchText.toLowerCase()) ||
       patient.phone?.toLowerCase().includes(searchText.toLowerCase()) ||
       patient.email?.toLowerCase().includes(searchText.toLowerCase());
 
@@ -242,7 +237,7 @@ export default function PatientManagement() {
   return (
     <Box sx={{ padding: 3 }}>
       <Typography variant="h4" gutterBottom sx={{ mb: 3, color: "#769382" }}>
-        Bemorlar Boshqaruvi
+        {isReception ? "Bemorlar Ro'yxati" : "Bemorlar Boshqaruvi"}
         <Chip
           label={`Jami: ${patients.length}`}
           sx={{
@@ -363,19 +358,21 @@ export default function PatientManagement() {
             Yangilash
           </Button>
 
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => navigate("/admin/patients/create")}
-            sx={{
-              backgroundColor: "#769382",
-              "&:hover": {
-                backgroundColor: "#5a7a6a",
-              },
-            }}
-          >
-            Yangi Bemor
-          </Button>
+          {canCreatePatient && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => navigate(`${basePath}/patients/create`)}
+              sx={{
+                backgroundColor: "#769382",
+                "&:hover": {
+                  backgroundColor: "#5a7a6a",
+                },
+              }}
+            >
+              Yangi Bemor
+            </Button>
+          )}
         </Box>
       </Box>
 
@@ -391,10 +388,14 @@ export default function PatientManagement() {
       ) : filteredPatients.length === 0 ? (
         <Box sx={{ textAlign: "center", mt: 5 }}>
           <Typography variant="h6" color="text.secondary" gutterBottom>
-            Bemor topilmadi
+            {patients.length === 0
+              ? "Hali bemorlar mavjud emas"
+              : "Bemor topilmadi"}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Qidiruv shartlariga mos bemor mavjud emas
+            {patients.length === 0
+              ? "Yangi bemor qo'shish uchun 'Yangi Bemor' tugmasini bosing"
+              : "Qidiruv shartlariga mos bemor mavjud emas"}
           </Typography>
         </Box>
       ) : (
@@ -451,10 +452,10 @@ export default function PatientManagement() {
                       <TableCell
                         sx={{ fontFamily: "monospace", fontSize: "0.8rem" }}
                       >
-                        {patient.id.slice(0, 8)}...
+                        {patient.id?.slice(0, 8)}...
                       </TableCell>
-                      <TableCell>{patient.firstName}</TableCell>
-                      <TableCell>{patient.lastName}</TableCell>
+                      <TableCell>{patient.firstName || "-"}</TableCell>
+                      <TableCell>{patient.lastName || "-"}</TableCell>
                       <TableCell>{patient.phone || "-"}</TableCell>
                       <TableCell>{patient.email || "-"}</TableCell>
                       <TableCell>
@@ -488,9 +489,11 @@ export default function PatientManagement() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {new Date(patient.createdAt).toLocaleDateString(
-                          "uz-UZ"
-                        )}
+                        {patient.createdAt
+                          ? new Date(patient.createdAt).toLocaleDateString(
+                              "uz-UZ"
+                            )
+                          : "-"}
                       </TableCell>
                       <TableCell align="center">
                         <IconButton
@@ -506,32 +509,38 @@ export default function PatientManagement() {
                         >
                           <VisibilityIcon />
                         </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleEdit(patient)}
-                          title="Tahrirlash"
-                          sx={{
-                            color: "#1976d2",
-                            "&:hover": {
-                              backgroundColor: "rgba(25, 118, 210, 0.1)",
-                            },
-                          }}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                        <IconButton
-                          color="error"
-                          size="small"
-                          onClick={() => handleDeleteClick(patient)}
-                          title="O'chirish"
-                          sx={{
-                            "&:hover": {
-                              backgroundColor: "rgba(211, 47, 47, 0.1)",
-                            },
-                          }}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
+
+                        {canEditPatient && (
+                          <IconButton
+                            size="small"
+                            onClick={() => handleEdit(patient)}
+                            title="Tahrirlash"
+                            sx={{
+                              color: "#1976d2",
+                              "&:hover": {
+                                backgroundColor: "rgba(25, 118, 210, 0.1)",
+                              },
+                            }}
+                          >
+                            <EditIcon />
+                          </IconButton>
+                        )}
+
+                        {canDeletePatient && (
+                          <IconButton
+                            color="error"
+                            size="small"
+                            onClick={() => handleDeleteClick(patient)}
+                            title="O'chirish"
+                            sx={{
+                              "&:hover": {
+                                backgroundColor: "rgba(211, 47, 47, 0.1)",
+                              },
+                            }}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

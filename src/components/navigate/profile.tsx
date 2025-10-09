@@ -1,7 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Link as RouterLink } from "react-router-dom";
-import { api } from "../../service/api";
-
+// src/components/navigate/profile.tsx
+import React, { useState } from "react";
 import {
   Menu,
   MenuItem,
@@ -10,28 +8,15 @@ import {
   Typography,
   Divider,
   Box,
-  useTheme,
 } from "@mui/material";
-import AccountCircleIcon from "@mui/icons-material/AccountCircle";
-import { LogoutButton } from "./logout";
+import { Settings, ExitToApp, Key } from "@mui/icons-material";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../store/auth-store";
 
 const Profile = () => {
-  const [user, setUser] = useState<{ email?: string; role?: string }>({});
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-
-  const theme = useTheme();
-
-  useEffect(() => {
-    const getUser = async () => {
-      try {
-        const response = await api.get("/auth/me");
-        setUser(response.data);
-      } catch (err) {
-        console.log(err);
-      }
-    };
-    getUser();
-  }, []);
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -41,97 +26,181 @@ const Profile = () => {
     setAnchorEl(null);
   };
 
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+    handleMenuClose();
+  };
+
+  const handleChangePassword = () => {
+    navigate("/change-password");
+    handleMenuClose();
+  };
+
+  const handleSettings = () => {
+    // Sozlamalar sahifasiga o'tish
+    handleMenuClose();
+  };
+
+  const displayName =
+    user?.firstname && user?.lastname
+      ? `${user.firstname} ${user.lastname}`
+      : user?.email || "Foydalanuvchi";
+
+  const displayRole = user?.role || "Noma'lum";
+  const avatarLetter = user?.firstname?.[0] || user?.email?.[0] || "U";
+
+  const isMenuOpen = Boolean(anchorEl);
+
   return (
     <>
+      {/* Avatar button */}
       <IconButton
         onClick={handleMenuOpen}
         size="large"
         edge="end"
         color="inherit"
-        aria-controls={anchorEl ? "profile-menu" : undefined}
-        aria-haspopup="true"
-        aria-expanded={anchorEl ? "true" : undefined}
         sx={{
-          bgcolor: "#769382",
-          "&:hover": { bgcolor: "#5c6b5a" },
+          "&:hover": {
+            bgcolor: "rgba(255, 255, 255, 0.1)",
+          },
           width: 40,
           height: 40,
+          transition: "all 0.2s",
         }}
       >
-        {user.email ? (
-          <Avatar
-            sx={{
-              bgcolor: "#4a5e40",
-              color: "#fff",
-              fontWeight: "bold",
-              textTransform: "uppercase",
-            }}
-          >
-            {user.email.charAt(0)}
-          </Avatar>
-        ) : (
-          <AccountCircleIcon sx={{ fontSize: 32, color: "#e0e0e0" }} />
-        )}
+        <Avatar
+          sx={{
+            bgcolor: "#4a5e40",
+            color: "#fff",
+            fontWeight: "bold",
+            width: 36,
+            height: 36,
+            fontSize: "16px",
+            border: "2px solid #fff",
+          }}
+        >
+          {avatarLetter}
+        </Avatar>
       </IconButton>
 
+      {/* Dropdown menu */}
       <Menu
         id="profile-menu"
         anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
+        open={isMenuOpen}
         onClose={handleMenuClose}
         MenuListProps={{
-          "aria-labelledby": "profile-button",
           sx: {
-            bgcolor: "#f5f9f4",
-            minWidth: 220,
-            borderRadius: 1,
-            boxShadow: "0px 4px 10px rgba(118, 147, 130, 0.3)",
+            py: 0,
+            minWidth: 200,
+            borderRadius: 2,
+            boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.15)",
           },
         }}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        anchorOrigin={{
+          vertical: "bottom",
+          horizontal: "right",
+        }}
+        transformOrigin={{
+          vertical: "top",
+          horizontal: "right",
+        }}
+        PaperProps={{
+          elevation: 3,
+          sx: {
+            overflow: "visible",
+            mt: 1.5,
+            "&:before": {
+              content: '""',
+              display: "block",
+              position: "absolute",
+              top: 0,
+              right: 14,
+              width: 10,
+              height: 10,
+              bgcolor: "background.paper",
+              transform: "translateY(-50%) rotate(45deg)",
+              zIndex: 0,
+            },
+          },
+        }}
       >
+        {/* User info - pastga ochiladigan qism */}
         <Box
-          px={2}
-          py={1}
           sx={{
-            backgroundColor: "#769382",
-            color: "white",
-            borderTopLeftRadius: 6,
-            borderTopRightRadius: 6,
+            p: 2,
+            backgroundColor: "#f8f9fa",
+            borderBottom: "1px solid #e9ecef",
           }}
         >
-          <Typography variant="subtitle1" noWrap>
-            {user.email || "No Email"}
+          <Typography
+            variant="subtitle2"
+            fontWeight="bold"
+            color="text.primary"
+            noWrap
+          >
+            {displayName}
           </Typography>
-          <Typography variant="body2" sx={{ opacity: 0.9 }}>
-            Role: {user.role || "Unknown"}
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            Rol: {displayRole}
+          </Typography>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{
+              display: "block",
+              mt: 0.5,
+              opacity: 0.8,
+            }}
+          >
+            {user?.email}
           </Typography>
         </Box>
-        <Divider />
 
+        {/* Menu items */}
         <MenuItem
-          component={RouterLink}
-          to="/change-password"
-          onClick={handleMenuClose}
+          onClick={handleSettings}
           sx={{
-            "&:hover": { bgcolor: "#b0c4a6", color: "#1e2d16" },
-            fontWeight: "medium",
+            py: 1.5,
+            "&:hover": {
+              bgcolor: "primary.light",
+              color: "primary.contrastText",
+            },
           }}
         >
-          Change Password
+          <Settings sx={{ mr: 2, fontSize: 20 }} />
+          <Typography variant="body2">Sozlamalar</Typography>
         </MenuItem>
 
         <MenuItem
-          onClick={() => {
-            handleMenuClose();
-          }}
+          onClick={handleChangePassword}
           sx={{
-            "&:hover": { bgcolor: "#b0c4a6", color: "#1e2d16" },
-            fontWeight: "medium",
+            py: 1.5,
+            "&:hover": {
+              bgcolor: "primary.light",
+              color: "primary.contrastText",
+            },
           }}
         >
-          <LogoutButton />
+          <Key sx={{ mr: 2, fontSize: 20 }} />
+          <Typography variant="body2">Parolni o'zgartirish</Typography>
+        </MenuItem>
+
+        <Divider />
+
+        <MenuItem
+          onClick={handleLogout}
+          sx={{
+            py: 1.5,
+            "&:hover": {
+              bgcolor: "error.light",
+              color: "error.contrastText",
+            },
+          }}
+        >
+          <ExitToApp sx={{ mr: 2, fontSize: 20 }} />
+          <Typography variant="body2">Chiqish</Typography>
         </MenuItem>
       </Menu>
     </>

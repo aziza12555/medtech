@@ -1,3 +1,4 @@
+// App.tsx - TO'LIQ TO'G'RILANGAN VERSIYA
 import { Route, Routes, Navigate, Outlet } from "react-router-dom";
 import { Box } from "@mui/material";
 import Login from "./page/login";
@@ -16,8 +17,10 @@ import Reception from "./page/reception";
 import ChangePassword from "./page/change-password";
 import Navbar from "./components/navbar";
 import { AuthRefresh } from "./bootstrap/auth-refresh";
-import AppointmentManagement from "./components/appointments/appointment-management";
-import CreateAppointmentForm from "./components/appointments/create-appointment";
+import AppointmentsList from "./components/appointments/appointment-list";
+import CreateAppointment from "./components/appointments/create-appointment";
+import ViewAppointment from "./components/appointments/view.appointment";
+import EditAppointment from "./components/appointments/edit-appointmement";
 
 function App() {
   return (
@@ -27,7 +30,7 @@ function App() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
 
-        {/* Admin paneli */}
+        {/* Admin paneli - BARCHA HUQUQLAR */}
         <Route
           path="/admin"
           element={
@@ -52,19 +55,27 @@ function App() {
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
 
-          {/* User boshqaruvi */}
-          <Route path="user">
+          {/* User boshqaruvi - FAQAT ADMIN */}
+          <Route path="users">
             <Route index element={<UserManagementTable />} />
             <Route path="create" element={<CreateUserForm />} />
             <Route path=":id" element={<UserDetail />} />
             <Route path=":id/edit" element={<EditUser />} />
           </Route>
 
-          {/* Patient boshqaruvi */}
+          {/* Patient boshqaruvi - FAQAT ADMIN */}
           <Route path="patients">
             <Route index element={<PatientManagement />} />
             <Route path="create" element={<CreatePatientForm />} />
             <Route path=":id" element={<PatientDetail />} />
+          </Route>
+
+          {/* Appointments boshqaruvi - FAQAT ADMIN */}
+          <Route path="appointments">
+            <Route index element={<AppointmentsList />} />
+            <Route path="create" element={<CreateAppointment />} />
+            <Route path=":id" element={<ViewAppointment />} />
+            <Route path=":id/edit" element={<EditAppointment />} />
           </Route>
 
           {/* Page not found admin uchun */}
@@ -88,12 +99,13 @@ function App() {
           />
         </Route>
 
-        {/* Doctor paneli */}
+        {/* Doctor paneli - FAQAT O'ZI KERAKLI HUQUQLAR */}
         <Route
           path="/doctor"
           element={
             <RoleRoute roles={["doctor"]}>
               <Box sx={{ display: "flex", minHeight: "100vh" }}>
+                <Sidebar />
                 <Box
                   sx={{ flexGrow: 1, display: "flex", flexDirection: "column" }}
                 >
@@ -102,17 +114,27 @@ function App() {
                     component="main"
                     sx={{ flexGrow: 1, p: 3, backgroundColor: "#f5f5f5" }}
                   >
-                    <Doctor />
+                    <Outlet />
                   </Box>
                 </Box>
               </Box>
             </RoleRoute>
           }
-        />
+        >
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<Doctor />} />
 
-        <Route path="/create-appointment" element={<CreateAppointmentForm />} />
+          {/* Doctor uchun appointments - FAQAT KO'RISH VA STATUS O'ZGARTIRISH */}
+          <Route path="appointments">
+            <Route index element={<AppointmentsList />} />
+            <Route path=":id" element={<ViewAppointment />} />
+            {/* DOCTOR UCHUN CREATE VA EDIT O'CHIRILDI */}
+          </Route>
 
-        {/* Reception paneli */}
+          {/* DOCTOR UCHUN PATIENTS ROUTE LARI O'CHIRILDI - Doctor bemor qo'sha olmaydi */}
+        </Route>
+
+        {/* Reception paneli - FAQAT O'ZI KERAKLI HUQUQLAR */}
         <Route
           path="/reception"
           element={
@@ -127,13 +149,32 @@ function App() {
                     component="main"
                     sx={{ flexGrow: 1, p: 3, backgroundColor: "#f5f5f5" }}
                   >
-                    <Reception />
+                    <Outlet />
                   </Box>
                 </Box>
               </Box>
             </RoleRoute>
           }
-        />
+        >
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<Reception />} />
+
+          {/* Reception uchun appointments - FAQAT CREATE VA KO'RISH */}
+          <Route path="appointments">
+            <Route index element={<AppointmentsList />} />
+            <Route path="create" element={<CreateAppointment />} />
+            <Route path=":id" element={<ViewAppointment />} />
+            {/* RECEPTION UCHUN EDIT O'CHIRILDI - Reception uchrashuvni tahrirlay olmaydi */}
+          </Route>
+
+          {/* Reception uchun patients - FAQAT CREATE VA KO'RISH */}
+          <Route path="patients">
+            <Route index element={<PatientManagement />} />
+            <Route path="create" element={<CreatePatientForm />} />
+            <Route path=":id" element={<PatientDetail />} />
+            {/* RECEPTION UCHUN EDIT O'CHIRILDI - Reception bemor ma'lumotlarini tahrirlay olmaydi */}
+          </Route>
+        </Route>
 
         {/* Parolni o'zgartirish (barcha rollar uchun) */}
         <Route
@@ -155,6 +196,45 @@ function App() {
                 </Box>
               </Box>
             </RoleRoute>
+          }
+        />
+
+        {/* Unauthorized sahifa */}
+        <Route
+          path="/unauthorized"
+          element={
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                minHeight: "100vh",
+                flexDirection: "column",
+                textAlign: "center",
+              }}
+            >
+              <h1 style={{ fontSize: "4rem", margin: 0, color: "#ff6b6b" }}>
+                403
+              </h1>
+              <h2 style={{ margin: "1rem 0" }}>Ruxsat etilmagan</h2>
+              <p style={{ marginBottom: "2rem", color: "#666" }}>
+                Sizda ushbu sahifaga kirish uchun ruxsat yo'q.
+              </p>
+              <button
+                onClick={() => (window.location.href = "/login")}
+                style={{
+                  padding: "10px 20px",
+                  backgroundColor: "#1976d2",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                }}
+              >
+                Login sahifasiga qaytish
+              </button>
+            </Box>
           }
         />
 
