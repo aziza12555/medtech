@@ -19,8 +19,6 @@ import Navbar from "./components/navbar";
 import { AuthRefresh } from "./bootstrap/auth-refresh";
 import AppointmentsList from "./components/appointments/appointment-list";
 import CreateAppointment from "./components/appointments/create-appointment";
-import ViewAppointment from "./components/appointments/view.appointment";
-import EditAppointment from "./components/appointments/edit-appointmement";
 
 function App() {
   return (
@@ -74,8 +72,6 @@ function App() {
           <Route path="appointments">
             <Route index element={<AppointmentsList />} />
             <Route path="create" element={<CreateAppointment />} />
-            <Route path=":id" element={<ViewAppointment />} />
-            <Route path=":id/edit" element={<EditAppointment />} />
           </Route>
 
           {/* Page not found admin uchun */}
@@ -127,7 +123,6 @@ function App() {
           {/* Doctor uchun appointments - FAQAT KO'RISH VA STATUS O'ZGARTIRISH */}
           <Route path="appointments">
             <Route index element={<AppointmentsList />} />
-            <Route path=":id" element={<ViewAppointment />} />
             {/* DOCTOR UCHUN CREATE VA EDIT O'CHIRILDI */}
           </Route>
 
@@ -163,7 +158,6 @@ function App() {
           <Route path="appointments">
             <Route index element={<AppointmentsList />} />
             <Route path="create" element={<CreateAppointment />} />
-            <Route path=":id" element={<ViewAppointment />} />
             {/* RECEPTION UCHUN EDIT O'CHIRILDI - Reception uchrashuvni tahrirlay olmaydi */}
           </Route>
 

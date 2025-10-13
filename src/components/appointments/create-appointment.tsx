@@ -1,331 +1,235 @@
-// src/components/CreateAppointment.tsx
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import type { User } from "../../store/auth-store";
+import api from "../../service/api";
 
-import {
-  Box,
-  Card,
-  CardContent,
-  TextField,
-  Button,
-  Typography,
-  Grid,
-  MenuItem,
-  Paper,
-  Alert,
-  CircularProgress,
-  Stepper,
-  Step,
-  StepLabel,
-} from "@mui/material";
-import {
-  Save as SaveIcon,
-  Cancel as CancelIcon,
-  ArrowBack as ArrowBackIcon,
-} from "@mui/icons-material";
-import { useAppointments } from "../../hooks/use-appointments";
-import type { CreateAppointmentDto } from "../../types/appointments";
+type Patient = {
+  id: string;
+  firstName: string;
+  lastName: string;
+};
 
-const steps = ["Asosiy ma'lumotlar", "Qo'shimcha ma'lumotlar", "Tasdiqlash"];
+export default function CreateAppointmentForm() {
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [doctors, setDoctors] = useState<User[]>([]);
 
-const CreateAppointment: React.FC = () => {
-  const navigate = useNavigate();
-  const { createAppointment, loading } = useAppointments();
+  const [patientId, setPatientId] = useState("");
+  const [doctorId, setDoctorId] = useState("");
+  const [startAt, setStartAt] = useState("");
+  const [endAt, setEndAt] = useState("");
+  const [status, setStatus] = useState("scheduled");
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const [activeStep, setActiveStep] = useState(0);
-  const [formData, setFormData] = useState<CreateAppointmentDto>({
-    patientId: "",
-    doctorId: "",
-    startAt: "",
-    endAt: "",
-    status: "scheduled",
-    reason: "",
-  });
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
-
-  const handleChange =
-    (field: keyof CreateAppointmentDto) =>
-    (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      const value = event.target.value;
-      setFormData((prev) => ({
-        ...prev,
-        [field]: value,
-      }));
-
-      // Clear error when user starts typing
-      if (errors[field]) {
-        setErrors((prev) => ({ ...prev, [field]: "" }));
+  useEffect(() => {
+    const fetchPatients = async () => {
+      try {
+        const res = await api.get("/patients");
+        const data = res.data.items ?? res.data;
+        setPatients(data);
+      } catch (err) {
+        console.error("Error fetching patients", err);
       }
     };
 
-  const validateStep = (step: number): boolean => {
-    const newErrors: { [key: string]: string } = {};
+    const fetchDoctors = async () => {
+      try {
+        const res = await api.get("/users");
+        const data: User[] = res.data.items ?? res.data;
+        const doctorsOnly = data.filter(
+          (u) => u.role?.toLowerCase() === "doctor"
+        );
+        setDoctors(doctorsOnly);
+      } catch (err) {
+        console.error("Error fetching doctors", err);
+      }
+    };
 
-    if (step === 0) {
-      if (!formData.patientId.trim()) {
-        newErrors.patientId = "Bemor ID kiritilishi shart";
-      }
-      if (!formData.doctorId.trim()) {
-        newErrors.doctorId = "Doktor ID kiritilishi shart";
-      }
-      if (!formData.startAt) {
-        newErrors.startAt = "Boshlanish vaqti kiritilishi shart";
-      }
-      if (!formData.endAt) {
-        newErrors.endAt = "Tugash vaqti kiritilishi shart";
-      }
+    fetchPatients();
+    fetchDoctors();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // ❗ To‘g‘rilangan shart
+    if (!patientId || !doctorId || !startAt || !endAt) {
+      setError("Iltimos barcha maydonlarni to‘ldiring");
+      setSuccess("");
+      return;
     }
 
-    if (formData.startAt && formData.endAt) {
-      const start = new Date(formData.startAt);
-      const end = new Date(formData.endAt);
-      if (end <= start) {
-        newErrors.endAt =
-          "Tugash vaqti boshlanish vaqtidan keyin bo'lishi kerak";
-      }
+    if (new Date(endAt) <= new Date(startAt)) {
+      setError("Tugash vaqti boshlanishidan keyin bo‘lishi kerak");
+      setSuccess("");
+      return;
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+    setLoading(true);
+    setError("");
+    setSuccess("");
 
-  const handleNext = () => {
-    if (validateStep(activeStep)) {
-      setActiveStep((prev) => prev + 1);
-    }
-  };
-
-  const handleBack = () => {
-    setActiveStep((prev) => prev - 1);
-  };
-
-  const handleSubmit = async () => {
     try {
-      await createAppointment(formData);
-      navigate("/appointments");
-    } catch (error) {
-      console.error("Failed to create appointment:", error);
-    }
-  };
+      const res = await api.post("/appointments", {
+        patientId,
+        doctorId,
+        startAt: new Date(startAt).toISOString(),
+        endAt: new Date(endAt).toISOString(),
+        status,
+        reason: reason || undefined,
+      });
 
-  const getStepContent = (step: number) => {
-    switch (step) {
-      case 0:
-        return (
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Bemor ID"
-                value={formData.patientId}
-                onChange={handleChange("patientId")}
-                error={!!errors.patientId}
-                helperText={errors.patientId}
-                required
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Doktor ID"
-                value={formData.doctorId}
-                onChange={handleChange("doctorId")}
-                error={!!errors.doctorId}
-                helperText={errors.doctorId}
-                required
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Boshlanish Vaqti"
-                type="datetime-local"
-                value={formData.startAt}
-                onChange={handleChange("startAt")}
-                error={!!errors.startAt}
-                helperText={errors.startAt}
-                InputLabelProps={{ shrink: true }}
-                required
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Tugash Vaqti"
-                type="datetime-local"
-                value={formData.endAt}
-                onChange={handleChange("endAt")}
-                error={!!errors.endAt}
-                helperText={errors.endAt}
-                InputLabelProps={{ shrink: true }}
-                required
-              />
-            </Grid>
-          </Grid>
-        );
+      setSuccess("Uchrashuv muvaffaqiyatli yaratildi!");
+      setError("");
 
-      case 1:
-        return (
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Status"
-                select
-                value={formData.status}
-                onChange={handleChange("status")}
-              >
-                <MenuItem value="scheduled">Rejalashtirilgan</MenuItem>
-                <MenuItem value="completed">Yakunlangan</MenuItem>
-                <MenuItem value="canceled">Bekor qilingan</MenuItem>
-              </TextField>
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Sabab (ixtiyoriy)"
-                multiline
-                rows={4}
-                value={formData.reason}
-                onChange={handleChange("reason")}
-                placeholder="Uchrashuv sababini kiriting..."
-              />
-            </Grid>
-          </Grid>
-        );
+      // Formani tozalash
+      setPatientId("");
+      setDoctorId("");
+      setStartAt("");
+      setEndAt("");
+      setStatus("scheduled");
+      setReason("");
 
-      case 2:
-        return (
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Uchrashuv ma'lumotlari
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <Typography variant="subtitle2" color="textSecondary">
-                  Bemor ID:
-                </Typography>
-                <Typography variant="body1">{formData.patientId}</Typography>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Typography variant="subtitle2" color="textSecondary">
-                  Doktor ID:
-                </Typography>
-                <Typography variant="body1">{formData.doctorId}</Typography>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Typography variant="subtitle2" color="textSecondary">
-                  Boshlanish Vaqti:
-                </Typography>
-                <Typography variant="body1">
-                  {new Date(formData.startAt).toLocaleString()}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Typography variant="subtitle2" color="textSecondary">
-                  Tugash Vaqti:
-                </Typography>
-                <Typography variant="body1">
-                  {new Date(formData.endAt).toLocaleString()}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Typography variant="subtitle2" color="textSecondary">
-                  Status:
-                </Typography>
-                <Typography variant="body1" textTransform="capitalize">
-                  {formData.status}
-                </Typography>
-              </Grid>
-              {formData.reason && (
-                <Grid item xs={12}>
-                  <Typography variant="subtitle2" color="textSecondary">
-                    Sabab:
-                  </Typography>
-                  <Typography variant="body1">{formData.reason}</Typography>
-                </Grid>
-              )}
-            </Grid>
-
-            <Alert severity="info" sx={{ mt: 2 }}>
-              Ma'lumotlarni tekshiring. Tasdiqlaganingizdan so'ng uchrashuv
-              yaratiladi.
-            </Alert>
-          </Paper>
-        );
-
-      default:
-        return null;
+      console.log("Appointment:", res.data);
+    } catch (err: any) {
+      console.error("Error creating appointment", err);
+      setError(err.response?.data?.message || "Xatolik yuz berdi");
+      setSuccess("");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <Box sx={{ p: 3, maxWidth: 800, margin: "0 auto" }}>
-      <Card>
-        <CardContent>
-          <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
-            <Button
-              startIcon={<ArrowBackIcon />}
-              onClick={() => navigate("/appointments")}
-              sx={{ mr: 2 }}
-            >
-              Ortga
-            </Button>
-            <Typography variant="h4" component="h1">
-              Yangi Uchrashuv
-            </Typography>
-          </Box>
+    <div className="max-w-md mx-auto p-6 mt-[150px] bg-white rounded shadow-md">
+      <h2 className="text-xl font-semibold mb-4">Yangi Uchrashuv</h2>
 
-          <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
-            {steps.map((label) => (
-              <Step key={label}>
-                <StepLabel>{label}</StepLabel>
-              </Step>
+      {error && (
+        <div className="mb-4 text-red-600 bg-red-100 p-2 rounded">{error}</div>
+      )}
+      {success && (
+        <div className="mb-4 text-green-600 bg-green-100 p-2 rounded">
+          {success}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Bemor */}
+        <div>
+          <label className="block mb-1 font-medium" htmlFor="patientId">
+            Bemor
+          </label>
+          <select
+            id="patientId"
+            value={patientId}
+            onChange={(e) => setPatientId(e.target.value)}
+            required
+            className="w-full border rounded px-3 py-2"
+          >
+            <option value="">— Tanlang —</option>
+            {patients.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.firstName} {p.lastName}
+              </option>
             ))}
-          </Stepper>
+          </select>
+        </div>
 
-          <Box sx={{ mt: 2 }}>{getStepContent(activeStep)}</Box>
+        {/* Shifokor */}
+        <div>
+          <label className="block mb-1 font-medium" htmlFor="doctorId">
+            Shifokor
+          </label>
+          <select
+            id="doctorId"
+            value={doctorId}
+            onChange={(e) => setDoctorId(e.target.value)}
+            required
+            className="w-full border rounded px-3 py-2"
+          >
+            <option value="">— Tanlang —</option>
+            {doctors.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.firstname} {d.lastname}
+              </option>
+            ))}
+          </select>
+        </div>
 
-          <Box sx={{ display: "flex", justifyContent: "space-between", mt: 4 }}>
-            <Button
-              onClick={handleBack}
-              disabled={activeStep === 0 || loading}
-              startIcon={<CancelIcon />}
-            >
-              Ortga
-            </Button>
+        {/* Vaqtlar */}
+        <div>
+          <label className="block mb-1 font-medium" htmlFor="startAt">
+            Boshlanish vaqti
+          </label>
+          <input
+            id="startAt"
+            type="datetime-local"
+            value={startAt}
+            onChange={(e) => setStartAt(e.target.value)}
+            required
+            className="w-full border rounded px-3 py-2"
+          />
+        </div>
 
-            <Box sx={{ display: "flex", gap: 2 }}>
-              <Button
-                onClick={() => navigate("/appointments")}
-                variant="outlined"
-                disabled={loading}
-              >
-                Bekor qilish
-              </Button>
+        <div>
+          <label className="block mb-1 font-medium" htmlFor="endAt">
+            Tugash vaqti
+          </label>
+          <input
+            id="endAt"
+            type="datetime-local"
+            value={endAt}
+            onChange={(e) => setEndAt(e.target.value)}
+            required
+            className="w-full border rounded px-3 py-2"
+          />
+        </div>
 
-              {activeStep === steps.length - 1 ? (
-                <Button
-                  onClick={handleSubmit}
-                  variant="contained"
-                  disabled={loading}
-                  startIcon={
-                    loading ? <CircularProgress size={20} /> : <SaveIcon />
-                  }
-                >
-                  {loading ? "Yaratilmoqda..." : "Yaratish"}
-                </Button>
-              ) : (
-                <Button onClick={handleNext} variant="contained">
-                  Keyingi
-                </Button>
-              )}
-            </Box>
-          </Box>
-        </CardContent>
-      </Card>
-    </Box>
+        {/* Status */}
+        <div>
+          <label className="block mb-1 font-medium" htmlFor="status">
+            Status
+          </label>
+          <select
+            id="status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="w-full border rounded px-3 py-2"
+          >
+            <option value="scheduled">Scheduled</option>
+            <option value="completed">Completed</option>
+            <option value="canceled">Canceled</option>
+          </select>
+        </div>
+
+        {/* Sabab */}
+        <div>
+          <label className="block mb-1 font-medium" htmlFor="reason">
+            Sabab (ixtiyoriy)
+          </label>
+          <textarea
+            id="reason"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            className="w-full border rounded px-3 py-2"
+            rows={2}
+          />
+        </div>
+
+        {/* Submit tugmasi */}
+        <button
+          type="submit"
+          disabled={loading}
+          className={`w-full text-white py-2 rounded ${
+            loading
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-blue-600 hover:bg-blue-700"
+          }`}
+        >
+          {loading ? "Yuklanmoqda..." : "Uchrashuvni yaratish"}
+        </button>
+      </form>
+    </div>
   );
-};
-
-export default CreateAppointment;
+}

@@ -1,479 +1,640 @@
-// src/components/appointments/AppointmentsList.tsx
-import React, { useState, useEffect } from "react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Chip,
-  IconButton,
-  Menu,
-  MenuItem,
   TextField,
-  Button,
+  Alert,
+  Snackbar,
+  CircularProgress,
   Box,
-  Typography,
   Card,
   CardContent,
-  Select,
-  FormControl,
-  InputLabel,
-  Grid,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  CircularProgress,
+  Typography,
+  Button,
+  Chip,
 } from "@mui/material";
-import {
-  MoreVert as MoreVertIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Refresh as RefreshIcon,
-  Add as AddIcon,
-  Visibility as ViewIcon,
-} from "@mui/icons-material";
-import { useNavigate, useLocation } from "react-router-dom";
-import { format } from "date-fns";
-import { useAppointments } from "../../hooks/use-appointments";
-import { useAuth } from "../../store/auth-store";
-import type { Appointment } from "../../types/appointments";
+import React, { useEffect, useState, useCallback } from "react";
+import api from "../../service/api";
 
-const AppointmentsList: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { user } = useAuth();
-  const { loading, getAppointments, updateStatus, deleteAppointment } =
-    useAppointments();
+interface Patient {
+  id: string;
+  firstName: string;
+  lastName: string;
+}
 
+interface Doctor {
+  id: string;
+  firstname: string;
+  lastname: string;
+  role: string;
+}
+
+interface Appointment {
+  id: string;
+  startAt: string;
+  endAt: string;
+  status: string;
+  reason?: string;
+  patient: Patient;
+  doctor: Doctor;
+}
+
+interface ListResponse {
+  total: number;
+  offset: number;
+  limit: number;
+  items: Appointment[];
+}
+
+const AppointmentsPage: React.FC = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [filters, setFilters] = useState({
-    doctorId: user?.role === "doctor" ? user.id : "",
-    patientId: "",
-    from: "",
-    to: "",
-    status: "",
-  });
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [selectedAppointment, setSelectedAppointment] =
-    useState<Appointment | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
 
-  // Joriy rol va route ni aniqlash
-  const isAdmin = user?.role === "admin";
-  const isDoctor = user?.role === "doctor";
-  const isReception = user?.role === "reception";
+  const [offset, setOffset] = useState(0);
+  const [limit] = useState(6);
+  const [total, setTotal] = useState(0);
 
-  // Base path ni aniqlash
-  const getBasePath = () => {
-    if (location.pathname.includes("/admin")) return "/admin";
-    if (location.pathname.includes("/doctor")) return "/doctor";
-    if (location.pathname.includes("/reception")) return "/reception";
-    return "/admin";
-  };
+  const [doctorId, setDoctorId] = useState("");
+  const [patientId, setPatientId] = useState("");
+  const [status, setStatus] = useState("");
+  const [sort, setSort] = useState<string>("");
 
-  const basePath = getBasePath();
+  const [q, setQ] = useState("");
 
-  const fetchAppointments = async () => {
+  // Backend API parametrlarini tekshirish
+  const getApiParams = useCallback(() => {
+    const params: any = {
+      offset: offset.toString(),
+      limit: limit.toString(),
+    };
+
+    // Backend qanday parametrlarni qabul qilishini tekshirish
+    if (sort) params.sort = sort;
+    if (doctorId) params.doctorId = doctorId;
+    if (patientId) params.patientId = patientId;
+    if (status) params.status = status;
+    if (q) params.search = q; // backend 'q' yoki 'search' qabul qilishi mumkin
+
+    return params;
+  }, [offset, limit, sort, doctorId, patientId, status, q]);
+
+  const fetchAppointments = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
     try {
-      const params = isDoctor ? { ...filters, doctorId: user.id } : filters;
-      const response = await getAppointments(params);
-      setAppointments(response.data.items || response.data);
-    } catch (error) {
-      console.error("Failed to fetch appointments:", error);
-    }
-  };
+      const params = getApiParams();
+      console.log("📡 API so'rov parametrlari:", params);
 
-  useEffect(() => {
-    fetchAppointments();
+      // API endpoint va metodni tekshirish
+      const res = await api.get<ListResponse>("/appointments", {
+        params,
+        timeout: 10000, // 10 soniya timeout
+      });
+
+      console.log("✅ Serverdan ma'lumotlar qabul qilindi");
+      setAppointments(res.data.items);
+      setTotal(res.data.total);
+    } catch (e: any) {
+      console.error("❌ API xatosi:", e);
+
+      // Xatolik turlarini aniqlash
+      if (e.code === "ECONNABORTED" || e.message?.includes("timeout")) {
+        setError(
+          "Serverga ulanish vaqti tugadi. Iltimos, qayta urinib ko'ring."
+        );
+      } else if (e.response?.status === 500) {
+        setError(
+          "Server ichki xatosi. Iltimos, qo'llab-quvvatlash bo'limiga murojaat qiling."
+        );
+      } else if (e.response?.status === 400) {
+        setError("Noto'g'ri so'rov formati. Parametrlarni tekshiring.");
+      } else if (e.response?.status === 404) {
+        setError("API manzili topilmadi. URL ni tekshiring.");
+      } else if (e.response?.status === 401) {
+        setError("Kirish ruxsati yo'q. Iltimos, tizimga kiring.");
+      } else if (e.response?.status === 403) {
+        setError("Ruxsat etilmagan. Sizda ushbu resursga kirish huquqi yo'q.");
+      } else {
+        setError(`Tarmoq xatosi: ${e.message || "Nomaʼlum xatolik"}`);
+      }
+
+      setSnackbarOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [getApiParams]);
+
+  // Dummy ma'lumotlar - server ishlamasa ham ko'rsatish uchun
+  const useDummyData = useCallback(() => {
+    setLoading(true);
+    setTimeout(() => {
+      const dummyAppointments: Appointment[] = [
+        {
+          id: "1",
+          startAt: new Date(Date.now() + 86400000).toISOString(),
+          endAt: new Date(Date.now() + 90000000).toISOString(),
+          status: "scheduled",
+          reason: "Umumiy tibbiy ko'rik",
+          patient: { id: "p1", firstName: "Ali", lastName: "Valiyev" },
+          doctor: {
+            id: "d1",
+            firstname: "Dilorom",
+            lastname: "Xolmatova",
+            role: "cardiologist",
+          },
+        },
+        {
+          id: "2",
+          startAt: new Date(Date.now() + 172800000).toISOString(),
+          endAt: new Date(Date.now() + 176400000).toISOString(),
+          status: "confirmed",
+          reason: "Nevrologik konsultatsiya",
+          patient: { id: "p2", firstName: "Malika", lastName: "Rahimova" },
+          doctor: {
+            id: "d2",
+            firstname: "Javohir",
+            lastname: "Abdullayev",
+            role: "neurologist",
+          },
+        },
+        {
+          id: "3",
+          startAt: new Date(Date.now() - 86400000).toISOString(),
+          endAt: new Date(Date.now() - 82800000).toISOString(),
+          status: "completed",
+          reason: "Davolanish jarayoni",
+          patient: { id: "p3", firstName: "Sardor", lastName: "Tursunov" },
+          doctor: {
+            id: "d1",
+            firstname: "Dilorom",
+            lastname: "Xolmatova",
+            role: "cardiologist",
+          },
+        },
+      ];
+
+      setAppointments(dummyAppointments);
+      setTotal(dummyAppointments.length);
+      setError(null);
+      setLoading(false);
+    }, 1000);
   }, []);
 
-  const handleFilterChange = (field: string, value: string) => {
-    setFilters((prev) => ({ ...prev, [field]: value }));
-  };
+  // Birinchi marta yuklash - avval serverga so'rov, agar xatolik bo'lsa dummy ma'lumotlar
+  useEffect(() => {
+    const initializeData = async () => {
+      try {
+        await fetchAppointments();
+      } catch {
+        // Agar server so'rovi muvaffaqiyatsiz bo'lsa, dummy ma'lumotlarni ko'rsatish
+        useDummyData();
+      }
+    };
 
-  const handleApplyFilters = () => {
+    initializeData();
+  }, []);
+
+  // Filterlar o'zgarganda
+  useEffect(() => {
+    setOffset(0);
+    const timeoutId = setTimeout(() => {
+      fetchAppointments();
+    }, 300);
+    return () => clearTimeout(timeoutId);
+  }, [doctorId, patientId, status, sort, fetchAppointments]);
+
+  // Qidiruv o'zgarganda
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setOffset(0);
+      fetchAppointments();
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [q, fetchAppointments]);
+
+  // Sahifa o'zgarganda
+  useEffect(() => {
     fetchAppointments();
-  };
+  }, [offset, fetchAppointments]);
 
-  const handleClearFilters = () => {
-    setFilters({
-      doctorId: isDoctor ? user?.id || "" : "",
-      patientId: "",
-      from: "",
-      to: "",
-      status: "",
-    });
-  };
+  const pages = Math.ceil(total / limit) || 1;
+  const currentPage = Math.floor(offset / limit) + 1;
 
-  const handleMenuOpen = (
-    event: React.MouseEvent<HTMLElement>,
-    appointment: Appointment
-  ) => {
-    setAnchorEl(event.currentTarget);
-    setSelectedAppointment(appointment);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-    setSelectedAppointment(null);
-  };
-
-  const handleStatusChange = async (newStatus: string) => {
-    if (!selectedAppointment) return;
-
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Haqiqatan ham bu bandni o'chirmoqchimisiz?")) return;
     try {
-      await updateStatus(selectedAppointment.id, newStatus);
+      await api.delete(`/appointments/${id}`);
+      alert("Band muvaffaqiyatli o'chirildi.");
       fetchAppointments();
-      handleMenuClose();
-    } catch (error) {
-      console.error("Failed to update status:", error);
-    }
-  };
-
-  const handleDeleteClick = () => {
-    setDeleteDialogOpen(true);
-    handleMenuClose();
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!selectedAppointment) return;
-
-    try {
-      await deleteAppointment(selectedAppointment.id);
-      fetchAppointments();
-      setDeleteDialogOpen(false);
-      setSelectedAppointment(null);
-    } catch (error) {
-      console.error("Failed to delete appointment:", error);
-    }
-  };
-
-  const handleEdit = () => {
-    if (selectedAppointment) {
-      navigate(`${basePath}/appointments/edit/${selectedAppointment.id}`);
-      handleMenuClose();
-    }
-  };
-
-  const handleView = () => {
-    if (selectedAppointment) {
-      navigate(`${basePath}/appointments/${selectedAppointment.id}`);
-      handleMenuClose();
+    } catch (e: any) {
+      alert("O'chirishda xatolik: " + (e.message || "Nomaʼlum xatolik"));
     }
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "scheduled":
-        return "primary";
-      case "completed":
+    switch (status.toLowerCase()) {
+      case "confirmed":
         return "success";
-      case "canceled":
+      case "cancelled":
         return "error";
+      case "scheduled":
+        return "warning";
+      case "completed":
+        return "info";
       default:
         return "default";
     }
   };
 
   const getStatusText = (status: string) => {
-    switch (status) {
+    switch (status.toLowerCase()) {
+      case "confirmed":
+        return "Tasdiqlangan";
+      case "cancelled":
+        return "Bekor qilingan";
       case "scheduled":
         return "Rejalashtirilgan";
       case "completed":
         return "Yakunlangan";
-      case "canceled":
-        return "Bekor qilingan";
       default:
         return status;
     }
   };
 
-  const canCreateAppointment = isAdmin || isReception;
-  const canEditAppointment = isAdmin; // Faqat admin tahrirlay oladi
-  const canDeleteAppointment = isAdmin; // Faqat admin o'chira oladi
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setQ(e.target.value);
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    fetchAppointments();
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbarOpen(false);
+  };
+
+  const clearAllFilters = () => {
+    setSort("");
+    setDoctorId("");
+    setPatientId("");
+    setStatus("");
+    setQ("");
+    setOffset(0);
+  };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Card>
-        <CardContent>
+    <Box sx={{ p: 3, minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
+      <Card sx={{ maxWidth: 1200, margin: "0 auto", borderRadius: 2 }}>
+        <CardContent sx={{ p: 3 }}>
+          {/* Sarlavha */}
+          <Typography
+            variant="h4"
+            component="h1"
+            align="center"
+            gutterBottom
+            sx={{
+              color: "primary.main",
+              fontWeight: "bold",
+              mb: 4,
+            }}
+          >
+            📋 Tibbiy Maslahatlar Ro'yxati
+          </Typography>
+
+          {/* Boshqaruv tugmalari */}
           <Box
             sx={{
               display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
+              gap: 1,
+              justifyContent: "center",
+              flexWrap: "wrap",
               mb: 3,
             }}
           >
-            <Typography variant="h4" component="h1">
-              {isDoctor ? "Mening Uchrashuvlarim" : "Uchrashuvlar"}
-            </Typography>
-            <Box sx={{ display: "flex", gap: 2 }}>
-              <Button
+            <Button
+              variant="outlined"
+              onClick={fetchAppointments}
+              startIcon="🔄"
+            >
+              Yangilash
+            </Button>
+
+            <Button
+              variant="outlined"
+              onClick={useDummyData}
+              startIcon="🧪"
+              color="secondary"
+            >
+              Namuna Ma'lumotlar
+            </Button>
+
+            <Button
+              variant="outlined"
+              onClick={clearAllFilters}
+              startIcon="🗑️"
+              color="error"
+            >
+              Filterni Tozalash
+            </Button>
+          </Box>
+
+          {/* Qidiruv va Filterlar */}
+          <Box sx={{ mb: 3 }}>
+            {/* Qidiruv */}
+            <Box sx={{ display: "flex", justifyContent: "center", mb: 2 }}>
+              <TextField
+                label="Qidiruv"
                 variant="outlined"
-                startIcon={<RefreshIcon />}
-                onClick={fetchAppointments}
-                disabled={loading}
+                value={q}
+                onChange={handleSearchChange}
+                sx={{ width: 400 }}
+                placeholder="Ism, familiya, sabab bo'yicha qidirish..."
+              />
+            </Box>
+
+            {/* Filterlar */}
+            <Box
+              sx={{
+                display: "flex",
+                gap: 1,
+                flexWrap: "wrap",
+                justifyContent: "center",
+              }}
+            >
+              <TextField
+                size="small"
+                placeholder="Shifokor ID"
+                value={doctorId}
+                onChange={(e) => setDoctorId(e.target.value)}
+                sx={{ minWidth: 150 }}
+              />
+
+              <TextField
+                size="small"
+                placeholder="Bemor ID"
+                value={patientId}
+                onChange={(e) => setPatientId(e.target.value)}
+                sx={{ minWidth: 150 }}
+              />
+
+              <TextField
+                select
+                size="small"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                sx={{ minWidth: 150 }}
+                label="Holat"
               >
-                Yangilash
-              </Button>
-              {canCreateAppointment && (
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={() => navigate(`${basePath}/appointments/create`)}
-                >
-                  Yangi Uchrashuv
-                </Button>
-              )}
+                <option value="">Barchasi</option>
+                <option value="scheduled">Rejalashtirilgan</option>
+                <option value="confirmed">Tasdiqlangan</option>
+                <option value="cancelled">Bekor qilingan</option>
+                <option value="completed">Yakunlangan</option>
+              </TextField>
+
+              <TextField
+                select
+                size="small"
+                value={sort}
+                onChange={(e) => setSort(e.target.value)}
+                sx={{ minWidth: 180 }}
+                label="Saralash"
+              >
+                <option value="">Standart</option>
+                <option value="startAt:desc">Yangi boshlanishi</option>
+                <option value="startAt:asc">Eski boshlanishi</option>
+                <option value="createdAt:desc">Yangi yaratilgani</option>
+                <option value="createdAt:asc">Eski yaratilgani</option>
+              </TextField>
             </Box>
           </Box>
 
-          {/* Filters */}
-          <Paper sx={{ p: 2, mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Filtrlar
-            </Typography>
-            <Grid container spacing={2}>
-              {!isDoctor && (
-                <Grid item xs={12} sm={6} md={3}>
-                  <TextField
-                    fullWidth
-                    label="Doktor ID"
-                    value={filters.doctorId}
-                    onChange={(e) =>
-                      handleFilterChange("doctorId", e.target.value)
-                    }
-                    size="small"
-                  />
-                </Grid>
-              )}
-              <Grid item xs={12} sm={6} md={3}>
-                <TextField
-                  fullWidth
-                  label="Bemor ID"
-                  value={filters.patientId}
-                  onChange={(e) =>
-                    handleFilterChange("patientId", e.target.value)
-                  }
-                  size="small"
-                />
-              </Grid>
-              <Grid item xs={12} sm={6} md={2}>
-                <TextField
-                  fullWidth
-                  label="Dan"
-                  type="date"
-                  value={filters.from}
-                  onChange={(e) => handleFilterChange("from", e.target.value)}
-                  size="small"
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6} md={2}>
-                <TextField
-                  fullWidth
-                  label="Gacha"
-                  type="date"
-                  value={filters.to}
-                  onChange={(e) => handleFilterChange("to", e.target.value)}
-                  size="small"
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6} md={2}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Status</InputLabel>
-                  <Select
-                    value={filters.status}
-                    label="Status"
-                    onChange={(e) =>
-                      handleFilterChange("status", e.target.value)
-                    }
-                  >
-                    <MenuItem value="">Hammasi</MenuItem>
-                    <MenuItem value="scheduled">Rejalashtirilgan</MenuItem>
-                    <MenuItem value="completed">Yakunlangan</MenuItem>
-                    <MenuItem value="canceled">Bekor qilingan</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-            </Grid>
-            <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
-              <Button
-                variant="contained"
-                onClick={handleApplyFilters}
-                disabled={loading}
-              >
-                Qo'llash
-              </Button>
-              <Button variant="outlined" onClick={handleClearFilters}>
-                Tozalash
-              </Button>
-            </Box>
-          </Paper>
-
-          {/* Appointments Table */}
-          <TableContainer component={Paper}>
-            {loading && (
-              <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
-                <CircularProgress />
-              </Box>
-            )}
-
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Bemor</TableCell>
-                  <TableCell>Doktor</TableCell>
-                  <TableCell>Boshlanish Vaqti</TableCell>
-                  <TableCell>Tugash Vaqti</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Sabab</TableCell>
-                  <TableCell align="center">Harakatlar</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {appointments.map((appointment) => (
-                  <TableRow key={appointment.id} hover>
-                    <TableCell>
-                      <Box>
-                        <Typography variant="subtitle2">
-                          {appointment.patient?.firstName}{" "}
-                          {appointment.patient?.lastName}
-                        </Typography>
-                        <Typography variant="body2" color="textSecondary">
-                          ID: {appointment.patientId}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Box>
-                        <Typography variant="subtitle2">
-                          {appointment.doctor?.firstname}{" "}
-                          {appointment.doctor?.lastname}
-                        </Typography>
-                        <Typography variant="body2" color="textSecondary">
-                          ID: {appointment.doctorId}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      {format(
-                        new Date(appointment.startAt),
-                        "dd.MM.yyyy HH:mm"
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(appointment.endAt), "dd.MM.yyyy HH:mm")}
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={getStatusText(appointment.status)}
-                        color={getStatusColor(appointment.status) as any}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>{appointment.reason || "-"}</TableCell>
-                    <TableCell align="center">
-                      <IconButton
-                        size="small"
-                        onClick={(e) => handleMenuOpen(e, appointment)}
-                      >
-                        <MoreVertIcon />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-
-            {appointments.length === 0 && !loading && (
-              <Box sx={{ p: 3, textAlign: "center" }}>
-                <Typography variant="body1" color="textSecondary">
-                  Uchrashuvlar topilmadi
+          {/* Yuklanish holati */}
+          {loading && (
+            <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
+              <Box sx={{ textAlign: "center" }}>
+                <CircularProgress size={60} />
+                <Typography variant="h6" sx={{ mt: 2 }}>
+                  Ma'lumotlar yuklanmoqda...
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mt: 1 }}
+                >
+                  {total > 0
+                    ? `${total} ta yozuvdan ${offset + 1}-${Math.min(
+                        offset + limit,
+                        total
+                      )} oralig'i`
+                    : "Serverga ulanmoqda..."}
                 </Typography>
               </Box>
-            )}
-          </TableContainer>
+            </Box>
+          )}
+
+          {/* Xatolik xabari */}
+          {error && !loading && (
+            <Box sx={{ textAlign: "center", p: 4 }}>
+              <Alert
+                severity="error"
+                sx={{ mb: 2 }}
+                action={
+                  <Button color="inherit" size="small" onClick={handleRetry}>
+                    Qayta urinish
+                  </Button>
+                }
+              >
+                {error}
+              </Alert>
+
+              <Button
+                variant="contained"
+                onClick={useDummyData}
+                startIcon="🧪"
+                sx={{ mt: 1 }}
+              >
+                Namuna Ma'lumotlarni Ko'rsatish
+              </Button>
+            </Box>
+          )}
+
+          {/* Asosiy kontent */}
+          {!loading && !error && (
+            <>
+              {/* Statistika */}
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  mb: 2,
+                  px: 1,
+                }}
+              >
+                <Typography variant="body1" color="text.secondary">
+                  Jami: <strong>{total}</strong> ta yozuv
+                </Typography>
+                <Typography variant="body1" color="text.secondary">
+                  Sahifa: <strong>{currentPage}</strong> / {pages}
+                </Typography>
+              </Box>
+
+              {/* Bandlar ro'yxati */}
+              {appointments.length === 0 ? (
+                <Box sx={{ textAlign: "center", p: 6 }}>
+                  <Typography variant="h6" color="text.secondary" gutterBottom>
+                    📭 Hech qanday yozuv topilmadi
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 2 }}
+                  >
+                    Filterni o'zgartiring yoki namuna ma'lumotlarni ko'ring
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    onClick={useDummyData}
+                    startIcon="🧪"
+                  >
+                    Namuna Ma'lumotlarni Ko'rsatish
+                  </Button>
+                </Box>
+              ) : (
+                <>
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: {
+                        xs: "1fr",
+                        sm: "1fr 1fr",
+                        md: "1fr 1fr 1fr",
+                      },
+                      gap: 2,
+                    }}
+                  >
+                    {appointments.map((appointment) => (
+                      <Card
+                        key={appointment.id}
+                        sx={{
+                          transition: "all 0.3s ease",
+                          "&:hover": {
+                            transform: "translateY(-4px)",
+                            boxShadow: 4,
+                          },
+                        }}
+                      >
+                        <CardContent>
+                          <Typography variant="h6" gutterBottom>
+                            {appointment.reason || "Sabab ko'rsatilmagan"}
+                          </Typography>
+
+                          <Chip
+                            label={getStatusText(appointment.status)}
+                            color={getStatusColor(appointment.status)}
+                            size="small"
+                            sx={{ mb: 2 }}
+                          />
+
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            paragraph
+                          >
+                            <strong>Vaqt:</strong>
+                            <br />
+                            {new Date(appointment.startAt).toLocaleString()} -
+                            <br />
+                            {new Date(appointment.endAt).toLocaleTimeString()}
+                          </Typography>
+
+                          <Typography variant="body2" paragraph>
+                            <strong>Shifokor:</strong>
+                            <br />
+                            {appointment.doctor.firstname}{" "}
+                            {appointment.doctor.lastname}
+                          </Typography>
+
+                          <Typography variant="body2" paragraph>
+                            <strong>Bemor:</strong>
+                            <br />
+                            {appointment.patient.firstName}{" "}
+                            {appointment.patient.lastName}
+                          </Typography>
+
+                          <Box sx={{ display: "flex", gap: 1, mt: 2 }}>
+                            <Button
+                              variant="contained"
+                              color="error"
+                              size="small"
+                              onClick={() => handleDelete(appointment.id)}
+                              startIcon="🗑️"
+                              fullWidth
+                            >
+                              O'chirish
+                            </Button>
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </Box>
+
+                  {/* Pagination */}
+                  {pages > 1 && (
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        gap: 2,
+                        mt: 4,
+                      }}
+                    >
+                      <Button
+                        variant="outlined"
+                        onClick={() => setOffset(Math.max(0, offset - limit))}
+                        disabled={offset === 0}
+                        startIcon="⬅️"
+                      >
+                        Oldingi
+                      </Button>
+
+                      <Typography variant="body1" sx={{ px: 2 }}>
+                        {currentPage} / {pages}
+                      </Typography>
+
+                      <Button
+                        variant="outlined"
+                        onClick={() => setOffset(offset + limit)}
+                        disabled={offset + limit >= total}
+                        endIcon="➡️"
+                      >
+                        Keyingi
+                      </Button>
+                    </Box>
+                  )}
+                </>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
 
-      {/* Action Menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
+      {/* Xatolik bildirishnomasi */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
-        <MenuItem onClick={handleView}>
-          <ViewIcon sx={{ mr: 1 }} />
-          Ko'rish
-        </MenuItem>
-
-        {canEditAppointment && (
-          <MenuItem onClick={handleEdit}>
-            <EditIcon sx={{ mr: 1 }} />
-            Tahrirlash
-          </MenuItem>
-        )}
-
-        {/* Status o'zgartirish - Doctor va Admin uchun */}
-        {(isDoctor || isAdmin) && (
-          <>
-            <MenuItem onClick={() => handleStatusChange("scheduled")}>
-              <Chip label="S" color="primary" size="small" sx={{ mr: 1 }} />
-              Rejalashtirilgan
-            </MenuItem>
-            <MenuItem onClick={() => handleStatusChange("completed")}>
-              <Chip label="Y" color="success" size="small" sx={{ mr: 1 }} />
-              Yakunlangan
-            </MenuItem>
-            <MenuItem onClick={() => handleStatusChange("canceled")}>
-              <Chip label="B" color="error" size="small" sx={{ mr: 1 }} />
-              Bekor qilish
-            </MenuItem>
-          </>
-        )}
-
-        {canDeleteAppointment && (
-          <MenuItem onClick={handleDeleteClick} sx={{ color: "error.main" }}>
-            <DeleteIcon sx={{ mr: 1 }} />
-            O'chirish
-          </MenuItem>
-        )}
-      </Menu>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-      >
-        <DialogTitle>Uchrashuvni o'chirish</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Rostan ham "{selectedAppointment?.patient?.firstName}{" "}
-            {selectedAppointment?.patient?.lastName}" ning uchrashuvini
-            o'chirmoqchimisiz?
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>
-            Bekor qilish
-          </Button>
-          <Button
-            onClick={handleConfirmDelete}
-            color="error"
-            variant="contained"
-          >
-            O'chirish
-          </Button>
-        </DialogActions>
-      </Dialog>
+        <Alert severity="error" onClose={handleCloseSnackbar}>
+          {error}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
 
-export default AppointmentsList;
+export default AppointmentsPage;

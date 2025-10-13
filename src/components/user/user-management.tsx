@@ -429,7 +429,7 @@ export default function UserManagementTable() {
                       <TableCell>{user.firstName}</TableCell>
                       <TableCell>{user.lastName}</TableCell>
                       <TableCell>
-                        <Chip
+                        <Chip 
                           label={user.role}
                           color={roleColor(user.role)}
                           size="small"

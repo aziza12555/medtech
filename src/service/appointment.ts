@@ -1,76 +1,164 @@
-import { apiService } from "./api";
-
-export interface Appointment {
-  id: string;
-  patientId: string;
-  doctorId: string;
-  startAt: string;
-  endAt: string;
-  status: "scheduled" | "completed" | "canceled";
-  reason?: string;
-  createdBy?: string;
-  patient?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-  };
-  doctor?: {
-    id: string;
-    firstname: string;
-    lastname: string;
-    role: string;
-  };
-}
-
-export interface CreateAppointmentDto {
-  patientId: string;
-  doctorId: string;
-  startAt: string;
-  endAt: string;
-  status?: "scheduled" | "completed" | "canceled";
-  reason?: string;
-}
-
-export interface UpdateAppointmentDto {
-  doctorId?: string;
-  startAt?: string;
-  endAt?: string;
-  reason?: string;
-  status?: "scheduled" | "completed" | "canceled";
-}
-
-export interface ListAppointmentsResponse {
-  items: Appointment[];
-  total: number;
-  offset: number;
-  limit: number;
-}
+import { api } from "./api";
 
 export interface ListAppointmentsParams {
-  offset?: number;
+  page?: number;
   limit?: number;
-  doctorId?: string;
   patientId?: string;
-  from?: string;
-  to?: string;
+  doctorId?: string;
   status?: string;
+  startDate?: string;
+  endDate?: string;
+  sort?: "startAsc" | "startDesc" | "newest" | "oldest";
 }
 
-export const appointmentsService = {
-  getAppointments: (params?: ListAppointmentsParams) =>
-    apiService.get<ListAppointmentsResponse>("/appointments", { params }),
+export const appointmentService = {
+  getAll: async (params?: ListAppointmentsParams) => {
+    try {
+      const backendParams: any = {
+        offset: 0,
+        limit: 10,
+      };
 
-  createAppointment: (data: CreateAppointmentDto) =>
-    apiService.post<Appointment>("/appointments", data),
+      if (params?.page !== undefined && params?.limit !== undefined) {
+        backendParams.offset = (params.page - 1) * params.limit;
+        backendParams.limit = params.limit;
+      }
 
-  getAppointment: (id: string) =>
-    apiService.get<Appointment>(`/appointments/${id}`),
+      if (params?.patientId) {
+        backendParams.patientId = params.patientId;
+      }
 
-  updateAppointment: (id: string, data: UpdateAppointmentDto) =>
-    apiService.put<Appointment>(`/appointments/${id}`, data),
+      if (params?.doctorId) {
+        backendParams.doctorId = params.doctorId;
+      }
 
-  updateStatus: (id: string, status: string) =>
-    apiService.patch<Appointment>(`/appointments/${id}/status`, { status }),
+      if (params?.status) {
+        backendParams.status = params.status;
+      }
 
-  deleteAppointment: (id: string) => apiService.delete(`/appointments/${id}`),
+      if (params?.startDate) {
+        backendParams.from = params.startDate;
+      }
+      if (params?.endDate) {
+        backendParams.to = params.endDate;
+      }
+
+      if (params?.sort) {
+        if (params.sort === "newest" || params.sort === "startDesc") {
+          backendParams.sort = "startDesc";
+        } else if (params.sort === "oldest" || params.sort === "startAsc") {
+          backendParams.sort = "startAsc";
+        }
+      }
+
+      console.log("Sending appointment request:", backendParams);
+
+      const response = await api.get("/appointments", {
+        params: backendParams,
+      });
+
+      console.log("Appointment API response:", response.data);
+
+      return {
+        data: response.data.items || [],
+        total: response.data.total || 0,
+      };
+    } catch (error: any) {
+      console.error(
+        "Appointment API Error:",
+        error.response?.data || error.message
+      );
+      throw error;
+    }
+  },
+
+  getById: async (id: string) => {
+    try {
+      const response = await api.get(`/appointments/${id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        `Get appointment by ID ${id} error:`,
+        error.response?.data || error.message
+      );
+      throw error;
+    }
+  },
+
+  create: async (appointmentData: any) => {
+    try {
+      const backendDto = {
+        patientId: appointmentData.patientId,
+        doctorId: appointmentData.doctorId,
+        startAt: appointmentData.startAt,
+        endAt: appointmentData.endAt,
+        status: appointmentData.status || "scheduled",
+        reason: appointmentData.reason,
+      };
+
+      console.log("Creating appointment:", backendDto);
+      const response = await api.post("/appointments", backendDto);
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        "Create appointment error:",
+        error.response?.data || error.message
+      );
+      throw error;
+    }
+  },
+
+  update: async (id: string, appointmentData: any) => {
+    try {
+      const backendDto: any = {};
+
+      if (appointmentData.patientId)
+        backendDto.patientId = appointmentData.patientId;
+      if (appointmentData.doctorId)
+        backendDto.doctorId = appointmentData.doctorId;
+      if (appointmentData.startAt) backendDto.startAt = appointmentData.startAt;
+      if (appointmentData.endAt) backendDto.endAt = appointmentData.endAt;
+      if (appointmentData.status) backendDto.status = appointmentData.status;
+      if (appointmentData.reason !== undefined)
+        backendDto.reason = appointmentData.reason;
+
+      console.log(" Updating appointment:", backendDto);
+      const response = await api.patch(`/appointments/${id}`, backendDto);
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        `Update appointment ${id} error:`,
+        error.response?.data || error.message
+      );
+      throw error;
+    }
+  },
+
+  updateStatus: async (id: string, statusData: any) => {
+    try {
+      const response = await api.patch(`/appointments/${id}/status`, {
+        status: statusData.status,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        `Update appointment status ${id} error:`,
+        error.response?.data || error.message
+      );
+      throw error;
+    }
+  },
+
+  delete: async (id: string) => {
+    try {
+      const response = await api.delete(`/appointments/${id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        `Delete appointment ${id} error:`,
+        error.response?.data || error.message
+      );
+      throw error;
+    }
+  },
 };
